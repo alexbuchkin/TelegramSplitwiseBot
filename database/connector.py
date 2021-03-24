@@ -170,11 +170,8 @@ class Connector:
         self
     ):
         cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM payments;")
-        cursor.execute("DELETE FROM debtors;")
-        cursor.execute("DELETE FROM expenses;")
-        cursor.execute("DELETE FROM users;")
-        cursor.execute("DELETE FROM events;")
+        for table_name in ['payments', 'debtors', 'expenses', 'users', 'events']:
+            cursor.execute(f'DELETE FROM {table_name};')
 
     def __del__(self):
         """
