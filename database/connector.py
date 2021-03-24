@@ -33,8 +33,9 @@ class Connector:
                        "FOREIGN KEY (sender) REFERENCES users(id), FOREIGN KEY (recipient) REFERENCES users(id));")
 
     def save_event_info(
-            self,
-            event_name: str):
+        self,
+        event_name: str
+    ) -> int:
         cursor = self.conn.cursor()
         cursor.execute("INSERT INTO events (name) VALUES(?);", (event_name,))
         self.conn.commit()
@@ -49,9 +50,10 @@ class Connector:
         return event.fetchone()
 
     def save_user_info(
-            self,
-            user_name: str,
-            event_id: str):
+        self,
+        user_name: str,
+        event_id: str
+    ) -> int:
         cursor = self.conn.cursor()
         cursor.execute("INSERT INTO users (name, event_id) VALUES(?, ?);", (user_name, event_id))
         self.conn.commit()
@@ -66,10 +68,11 @@ class Connector:
         return user.fetchone()
 
     def save_debtor_info(
-            self,
-            expense_id: str,
-            debtor_name: str,
-            sum_of_debt: int):
+        self,
+        expense_id: str,
+        debtor_name: str,
+        sum_of_debt: int
+    ) -> int:
         cursor = self.conn.cursor()
         cursor.execute("INSERT INTO debtors (expense_id, name, sum) VALUES(?, ?, ?);", (expense_id, debtor_name, sum_of_debt))
         self.conn.commit()
@@ -84,10 +87,11 @@ class Connector:
         return debt.fetchone()
 
     def save_expense_info(
-            self,
-            description: str,
-            payer: int,
-            sum_of_pay: int):
+        self,
+        description: str,
+        payer: int,
+        sum_of_pay: int
+    ) -> int:
         cursor = self.conn.cursor()
         cursor.execute("INSERT INTO expenses (description, payer, sum) VALUES(?, ?, ?);", (description, payer, sum_of_pay))
         self.conn.commit()
@@ -102,10 +106,11 @@ class Connector:
         return expense.fetchone()
 
     def save_payments_info(
-            self,
-            sender: int,
-            recipient: int,
-            sum_of_pay: int):
+        self,
+        sender: int,
+        recipient: int,
+        sum_of_pay: int
+    ) -> int:
         cursor = self.conn.cursor()
         cursor.execute("INSERT INTO payments (sender, recipient, sum) VALUES(?, ?, ?);", (sender, recipient, sum_of_pay))
         self.conn.commit()
@@ -158,11 +163,8 @@ class Connector:
         self
     ):
         cursor = self.conn.cursor()
-        cursor.execute("DROP TABLE IF EXISTS payments;")
-        cursor.execute("DROP TABLE IF EXISTS debtors;")
-        cursor.execute("DROP TABLE IF EXISTS expenses;")
-        cursor.execute("DROP TABLE IF EXISTS users;")
-        cursor.execute("DROP TABLE IF EXISTS events;")
+        for table_name in ['payments', 'debtors', 'expenses', 'users', 'events']:
+            cursor.execute(f'DROP TABLE IF EXISTS {table_name};')
 
     def clean_all_tables(
         self
