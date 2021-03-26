@@ -9,6 +9,7 @@ class Connector:
         """
         self.conn = sqlite3.connect('database.sqlite')
         self._create_database()
+        self.conn.commit()
 
     def _create_database(self) -> NoReturn:
         """
@@ -17,20 +18,53 @@ class Connector:
         """
         cursor = self.conn.cursor()
         cursor.execute("PRAGMA foreign_keys=on;")
-        cursor.execute("CREATE TABLE IF NOT EXISTS users "
-                       "(id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR, event_id INTEGER, "
-                       "FOREIGN KEY (event_id) REFERENCES events(id), UNIQUE(name, event_id) ON CONFLICT REPLACE);")
-        cursor.execute("CREATE TABLE IF NOT EXISTS events "
-                       "(id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR);")
-        cursor.execute("CREATE TABLE IF NOT EXISTS expenses "
-                       "(id INTEGER PRIMARY KEY AUTOINCREMENT, description VARCHAR, payer VARCHAR, sum INTEGER, "
-                       "FOREIGN KEY (payer) REFERENCES users(id));")
-        cursor.execute("CREATE TABLE IF NOT EXISTS debtors "
-                       "(id INTEGER PRIMARY KEY AUTOINCREMENT, expense_id INTEGER, name INTEGER, sum INTEGER, "
-                       "FOREIGN KEY (expense_id) REFERENCES expenses(id), FOREIGN KEY (name) REFERENCES users(id));")
-        cursor.execute("CREATE TABLE IF NOT EXISTS payments "
-                       "(id INTEGER PRIMARY KEY AUTOINCREMENT, sender INTEGER, recipient INTEGER, sum INTEGER,"
-                       "FOREIGN KEY (sender) REFERENCES users(id), FOREIGN KEY (recipient) REFERENCES users(id));")
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id   INTEGER PRIMARY KEY,
+                name VARCHAR
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS events (
+                id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                name  VARCHAR NOT NULL,
+                token VARCHAR NOT NULL
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user2event (
+                user_id INTEGER NOT NULL,
+                event_id INTEGER NOT NULL,
+                
+                FOREIGN KEY (user_id)  REFERENCES users(id),
+                FOREIGN KEY (event_id) REFERENCES events(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS expenses (
+                id        INTEGER PRIMARY KEY,
+                name      VARCHAR NOT NULL,
+                lender_id INTEGER NOT NULL,
+                event_id  INTEGER NOT NULL,
+                sum       INTEGER NOT NULL,
+                datetime  DATETIME NOT NULL,
+
+                FOREIGN KEY (lender_id) REFERENCES users(id),
+                FOREIGN KEY (event_id)  REFERENCES events(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS debts (
+                expense_id INTEGER NOT NULL,
+                lender_id  INTEGER NOT NULL,
+                debtor_id  INTEGER NOT NULL,
+                sum        INTEGER NOT NULL,
+
+                FOREIGN KEY (expense_id) REFERENCES expenses(id),
+                FOREIGN KEY (lender_id)  REFERENCES users(id),
+                FOREIGN KEY (debtor_id)  REFERENCES users(id)
+            )
+        ''')
 
     def save_event_info(
         self,
