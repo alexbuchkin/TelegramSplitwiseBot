@@ -3,6 +3,14 @@ import sqlite3
 
 
 class Connector:
+    TABLES = [
+        'users',
+        'events',
+        'user2event',
+        'expenses',
+        'debts',
+    ]
+
     def __init__(self):
         """
         Establishes connection to database etc.
@@ -197,14 +205,14 @@ class Connector:
         self
     ):
         cursor = self.conn.cursor()
-        for table_name in ['payments', 'debtors', 'expenses', 'users', 'events']:
+        for table_name in self.TABLES:
             cursor.execute(f'DROP TABLE IF EXISTS {table_name};')
 
     def clean_all_tables(
         self
     ):
         cursor = self.conn.cursor()
-        for table_name in ['payments', 'debtors', 'expenses', 'users', 'events']:
+        for table_name in self.TABLES:
             cursor.execute(f'DELETE FROM {table_name};')
 
     def __del__(self):
