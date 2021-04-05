@@ -9,10 +9,10 @@ if __name__ == '__main__':
         (789, 'San44ez'),
     ]
 
-    for id, name in users:
-        splitwise.add_new_user(id, name)
+    for id_, name in users:
+        splitwise.add_new_user(id_, name)
 
-    for id, _ in users:
-        print(splitwise.get_user_info(id))
+    for id_, _ in users:
+        print(splitwise.get_user_info(id_))
 
     splitwise.conn.clean_all_tables()

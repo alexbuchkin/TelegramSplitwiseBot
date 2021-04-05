@@ -15,7 +15,7 @@ class Connector:
         """
         Establishes connection to database etc.
         """
-        self.conn = sqlite3.connect('database.sqlite')
+        self.conn = sqlite3.connect('database.sqlite', check_same_thread=False)
         self._create_database()
         self.conn.commit()
 
@@ -105,8 +105,11 @@ class Connector:
         user_id: int
     ) -> Optional[dict]:
         cursor = self.conn.cursor()
-        user = cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
-        return user.fetchone()
+        user = cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,)).fetchone()
+        return None if user is None else {
+            'id': user[0],
+            'name': user[1],
+        }
 
     def save_debtor_info(
         self,
