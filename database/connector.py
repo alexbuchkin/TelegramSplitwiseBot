@@ -1,4 +1,4 @@
-from typing import NoReturn
+from typing import NoReturn, Optional
 import sqlite3
 
 
@@ -93,18 +93,17 @@ class Connector:
 
     def save_user_info(
         self,
+        user_id: int,
         user_name: str,
-        event_id: str
-    ) -> int:
+    ) -> NoReturn:
         cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO users (name, event_id) VALUES(?, ?);", (user_name, event_id))
+        cursor.execute("INSERT INTO users VALUES(?, ?);", (user_id, user_name))
         self.conn.commit()
-        return cursor.lastrowid
 
-    def get_user_info(
+    def get_user_info_or_none(
         self,
         user_id: int
-    ) -> dict:
+    ) -> Optional[dict]:
         cursor = self.conn.cursor()
         user = cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
         return user.fetchone()
@@ -207,6 +206,7 @@ class Connector:
         cursor = self.conn.cursor()
         for table_name in self.TABLES:
             cursor.execute(f'DROP TABLE IF EXISTS {table_name};')
+        self.conn.commit()
 
     def clean_all_tables(
         self
@@ -214,6 +214,7 @@ class Connector:
         cursor = self.conn.cursor()
         for table_name in self.TABLES:
             cursor.execute(f'DELETE FROM {table_name};')
+        self.conn.commit()
 
     def __del__(self):
         """

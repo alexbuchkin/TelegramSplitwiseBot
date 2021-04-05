@@ -9,7 +9,6 @@ class SplitwiseApp:
         Creates database connector etc.
         """
         self.conn = Connector()
-        raise NotImplementedError
 
     def add_new_group(
         self,
@@ -29,15 +28,24 @@ class SplitwiseApp:
     def add_new_user(
         self,
         user_id: int,
-        user_info: dict,
+        name: str,
     ) -> NoReturn:
-        """
-        Creates new user
+        self.conn.save_user_info(user_id, name)
 
-        :param user_id: user id (must be unique)
-        :param user_info: dictionary with information about new user
-        """
-        raise NotImplementedError
+    def get_user_info(
+        self,
+        user_id: str,
+    ) -> dict:
+        user_info = self.conn.get_user_info_or_none(user_id)
+        if user_info is None:
+            raise KeyError(f'User with id = {user_id} does not exist')
+        return user_info
+
+    def user_exists(
+        self,
+        user_id: int,
+    ):
+        return self.conn.get_user_info_or_none(user_id) is not None
 
     def add_expense(
         self,
