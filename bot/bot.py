@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import (
     CallbackContext,
+    CommandHandler,
     Filters,
     MessageHandler,
     Updater,
@@ -18,6 +19,7 @@ class TelegramBot:
         self.splitwise = SplitwiseApp()
         self.updater = Updater(token)
         dispatcher = self.updater.dispatcher
+        dispatcher.add_handler(CommandHandler("create_event", self.create_event_handler))
         dispatcher.add_handler(MessageHandler(Filters.text, self.text_handler))
 
     def run(self) -> NoReturn:
@@ -47,4 +49,23 @@ class TelegramBot:
             )
             update.effective_chat.send_message(
                 f'Привет, {name}! Ты здесь впервые!'
+            )
+
+    def create_event_handler(
+        self,
+        update: Update,
+        context: CallbackContext,
+    ):
+        event_name = ' '.join(context.args)
+        event_token = self.splitwise.create_event(
+            user_id=update.effective_user.id,
+            event_name=event_name,
+        )
+        if event_token:
+            update.effective_chat.send_message(
+                f'Мероприятие "{event_name}" создано. Токен: {event_token}'
+            )
+        else:
+            update.effective_chat.send_message(
+                'Произошла ошибка при создании мероприятия. Попробуй ещё.'
             )

@@ -25,7 +25,7 @@ class Connector:
         Maybe we need to manually apply the migration mechanism instead of this method
         """
         cursor = self.conn.cursor()
-        cursor.execute("PRAGMA foreign_keys=on;")
+        cursor.execute('PRAGMA foreign_keys=on;')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id   INTEGER PRIMARY KEY,
@@ -35,8 +35,8 @@ class Connector:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS events (
                 id    INTEGER PRIMARY KEY AUTOINCREMENT,
-                name  VARCHAR NOT NULL,
-                token VARCHAR NOT NULL
+                name  VARCHAR NOT NULL UNIQUE,
+                token VARCHAR NOT NULL UNIQUE
             )
         ''')
         cursor.execute('''
@@ -74,14 +74,21 @@ class Connector:
             )
         ''')
 
-    def save_event_info(
+    def create_event(
         self,
-        event_name: str
-    ) -> int:
-        cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO events (name) VALUES(?);", (event_name,))
-        self.conn.commit()
-        return cursor.lastrowid
+        event_name: str,
+        event_token: str,
+        user_id: int,
+    ) -> NoReturn:
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('INSERT INTO events (name, token) VALUES(?, ?);', (event_name, event_token))
+            event_id = cursor.lastrowid
+            cursor.execute('INSERT INTO user2event (user_id, event_id) VALUES(?, ?);', (user_id, event_id))
+            self.conn.commit()
+        except sqlite3.Error:
+            self.conn.rollback()
+            raise
 
     def get_event_info(
         self,

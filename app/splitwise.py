@@ -1,6 +1,15 @@
-from typing import NoReturn, List, Tuple
+import logging
+import uuid
+import sys
+from typing import NoReturn, List, Tuple, Optional
+
+import sqlite3
 
 from database.connector import Connector
+
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 
 class SplitwiseApp:
@@ -46,6 +55,24 @@ class SplitwiseApp:
         user_id: int,
     ):
         return self.conn.get_user_info_or_none(user_id) is not None
+
+    def create_event(
+        self,
+        user_id: int,
+        event_name: str,
+    ) -> Optional[str]:
+        event_token = str(uuid.uuid4())
+        try:
+            self.conn.create_event(
+                event_name=event_name,
+                event_token=event_token,
+                user_id=user_id,
+            )
+            log.info(f'User {user_id} created event "{event_name}" with token {event_token}')
+            return event_token
+        except sqlite3.Error as err:
+            return None
+
 
     def add_expense(
         self,
