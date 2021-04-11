@@ -5,6 +5,8 @@ from typing import NoReturn, List, Tuple, Optional
 
 import sqlite3
 
+from datetime import datetime
+
 from database.connector import Connector
 
 
@@ -50,6 +52,26 @@ class SplitwiseApp:
             raise KeyError(f'User with id = {user_id} does not exist')
         return user_info
 
+    def get_users_of_event(
+        self,
+        token: str,
+    ) -> list:
+        users = self.conn.get_users_of_event(token)
+        if users is None or len(users) == 0:
+            raise KeyError(f'There are no users in event with id = {token}')
+        res = list()
+        for user in users:
+            user_dict = {'id': user[0], 'name': user[1]}
+            res.append(user_dict)
+        return res
+
+    def get_event_info(
+        self,
+        token: str,
+    ) -> dict:
+        users = self.conn.get_event_info(token)
+        return users
+
     def user_exists(
         self,
         user_id: int,
@@ -73,27 +95,37 @@ class SplitwiseApp:
         except sqlite3.Error as err:
             return None
 
-
     def add_expense(
         self,
-        group_id: int,
+        name: str,
         lender_id: int,
-        lent_sum: int,
-        debtors: List[Tuple[int, int]],
-        expense_name: str,
-        ts: int,
-    ) -> NoReturn:
-        """
-        Adds a simple expense
+        event_id: str,
+        sum_: float
+    ) -> int:
+        time = datetime.now()
+        id_ = self.conn.save_expense_info(name, lender_id, event_id, sum_, time)
+        return id_
 
-        :param group_id: group id
-        :param lender_id: id of a person who paid
-        :param lent_sum: sum that lender paid
-        :param debtors: list of tuples (debtor id, sum of debt)
-        :param expense_name: some notes about the expense
-        :param ts: time of expense adding in unix timestamp format
-        """
-        raise NotImplementedError
+    def add_user_to_event(
+        self,
+        user_id: int,
+        event_id: str
+    ) -> NoReturn:
+        self.conn.add_user_to_event(user_id, event_id)
+
+    def get_user_event(
+        self,
+        user_id: int,
+        event_id: str
+    ) -> list:
+        return self.conn.get_user_event(user_id, event_id)
+
+    def get_expense(
+        self,
+        expense_id: int
+    ) -> dict:
+        expense = self.conn.get_expense_info(expense_id)
+        return expense
 
     def add_equal_expense(
         self,
@@ -115,6 +147,21 @@ class SplitwiseApp:
         :param ts: time of expense adding in unix timestamp format
         """
         raise NotImplementedError
+
+    def add_debt(
+            self,
+            expense_id: int,
+            lender_id: int,
+            debtor_id: int,
+            sum_: float,
+    ) -> int:
+        return self.conn.save_debt_info(expense_id, lender_id, debtor_id, sum_)
+
+    def get_debts_of_expense(
+            self,
+            expense_id: int,
+    ) -> dict:
+        return self.conn.get_debts_of_expense(expense_id)
 
     def show_debts(
         self,
