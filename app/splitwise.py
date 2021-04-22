@@ -165,11 +165,21 @@ class SplitwiseApp:
 
     def show_debts(
         self,
-        group_id: int,
-    ) -> str:
-        """
-        Returns full information about debts for chosen group
-        :param group_id: group id
-        :return: debts info
-        """
-        raise NotImplementedError
+        token: str,
+    ) -> dict:
+        users = self.get_users_of_event(token)
+        users_balance = dict()
+        for user in users:
+            users_balance[user['id']] = 0.
+
+        users_expenses = self.conn.get_event_expenses(token)
+        expenses_id = list()
+        for ue in users_expenses:
+            expenses_id.append(ue[0])
+            users_balance[ue[1]] -= ue[2]
+
+        debts = self.conn.get_debts_of_expenses(expenses_id)
+        for debt in debts:
+            users_balance[debt[0]] += debt[1]
+
+        return users_balance

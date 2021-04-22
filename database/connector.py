@@ -169,6 +169,15 @@ class Connector:
         debt = cursor.execute("SELECT * FROM debts WHERE expense_id = ?;", (expense_id,))
         return debt.fetchone()
 
+    def get_debts_of_expenses(
+        self,
+        expenses_id: list
+    ) -> list:
+        cursor = self.conn.cursor()
+        sql = "SELECT debtor_id, sum FROM debts WHERE expense_id in ({seq});".format(seq=','.join(['?'] * len(expenses_id)))
+        debts = cursor.execute(sql, expenses_id)
+        return debts.fetchall()
+
     def save_expense_info(
         self,
         name: str,
@@ -190,6 +199,14 @@ class Connector:
         cursor = self.conn.cursor()
         expense = cursor.execute("SELECT * FROM expenses WHERE id = ?;", (expense_id,))
         return expense.fetchone()
+
+    def get_event_expenses(
+        self,
+        token: str
+    ) -> list:
+        cursor = self.conn.cursor()
+        expense = cursor.execute("SELECT id, lender_id, sum FROM expenses WHERE event_id = ?;", (token,))
+        return expense.fetchall()
 
     def save_payments_info(
         self,
