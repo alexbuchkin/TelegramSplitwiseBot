@@ -194,8 +194,13 @@ class ShowDebtsTokenState:
     ) -> NoReturn:
         token = update.effective_message.text
         user_id = update.effective_user.id
-        debts = self.bot_.splitwise.show_debts(token)
-        update.effective_chat.send_message(str(debts[user_id]))
+        transaction, inverse_transaction = self.bot_.splitwise.get_final_transactions(token)
+        if transaction[user_id]:
+            update.effective_chat.send_message('Вы должны: \n' + str(transaction.get(user_id)))
+        elif inverse_transaction[user_id]:
+            update.effective_chat.send_message('Вам должны: \n' + str(inverse_transaction.get(user_id)))
+        else:
+            update.effective_chat.send_message('Вы никому не должны и вам никто не должен')
         del self.bot_.states[update.effective_user.id]
 
 

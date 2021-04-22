@@ -161,14 +161,6 @@ class Connector:
         self.conn.commit()
         return cursor.lastrowid
 
-    def get_debts_of_expense(
-        self,
-        expense_id: int
-    ) -> dict:
-        cursor = self.conn.cursor()
-        debt = cursor.execute("SELECT * FROM debts WHERE expense_id = ?;", (expense_id,))
-        return debt.fetchone()
-
     def get_debts_of_expenses(
         self,
         expenses_id: list
@@ -207,76 +199,6 @@ class Connector:
         cursor = self.conn.cursor()
         expense = cursor.execute("SELECT id, lender_id, sum FROM expenses WHERE event_id = ?;", (token,))
         return expense.fetchall()
-
-    def save_payments_info(
-        self,
-        sender: int,
-        recipient: int,
-        sum_of_pay: int
-    ) -> int:
-        cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO payments (sender, recipient, sum) VALUES(?, ?, ?);", (sender, recipient, sum_of_pay))
-        self.conn.commit()
-        return cursor.lastrowid
-
-    def get_payments_info(
-        self,
-        expense_id: int
-    ) -> dict:
-        cursor = self.conn.cursor()
-        payment = cursor.execute("SELECT * FROM payments WHERE id = ?;", (expense_id,))
-        return payment.fetchone()
-
-    def get_all_users(
-        self
-    ) -> list:
-        cursor = self.conn.cursor()
-        users = cursor.execute("SELECT * FROM users;")
-        return users.fetchall()
-
-    def get_all_events(
-        self
-    ) -> list:
-        cursor = self.conn.cursor()
-        events = cursor.execute("SELECT * FROM events;")
-        return events.fetchall()
-
-    def get_all_expenses(
-        self
-    ) -> list:
-        cursor = self.conn.cursor()
-        expense = cursor.execute("SELECT * FROM expenses;")
-        return expense.fetchall()
-
-    def get_all_debtors(
-        self
-    ) -> list:
-        cursor = self.conn.cursor()
-        debtors = cursor.execute("SELECT * FROM debtors;")
-        return debtors.fetchall()
-
-    def get_all_payments(
-        self
-    ) -> list:
-        cursor = self.conn.cursor()
-        payments = cursor.execute("SELECT * FROM payments;")
-        return payments.fetchall()
-
-    def drop_all_tables(
-        self
-    ):
-        cursor = self.conn.cursor()
-        for table_name in self.TABLES:
-            cursor.execute(f'DROP TABLE IF EXISTS {table_name};')
-        self.conn.commit()
-
-    def clean_all_tables(
-        self
-    ):
-        cursor = self.conn.cursor()
-        for table_name in self.TABLES:
-            cursor.execute(f'DELETE FROM {table_name};')
-        self.conn.commit()
 
     def __del__(self):
         """

@@ -1,14 +1,11 @@
 import logging
-import uuid
-import sys
-from typing import NoReturn, List, Tuple, Optional
-
 import sqlite3
-
+import uuid
+from collections import deque, defaultdict
 from datetime import datetime
+from typing import NoReturn, List, Optional
 
 from database.connector import Connector
-
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -20,21 +17,6 @@ class SplitwiseApp:
         Creates database connector etc.
         """
         self.conn = Connector()
-
-    def add_new_group(
-        self,
-        group_id: int,
-        group_name: str,
-        users: List[int],
-    ) -> NoReturn:
-        """
-        Creates new user group
-
-        :param group_id: group id (must be unique)
-        :param group_name: group name
-        :param users: list of user ids of participants
-        """
-        raise NotImplementedError
 
     def add_new_user(
         self,
@@ -127,27 +109,6 @@ class SplitwiseApp:
         expense = self.conn.get_expense_info(expense_id)
         return expense
 
-    def add_equal_expense(
-        self,
-        group_id: int,
-        lender_id: int,
-        lent_sum: int,
-        debtors: List[int],
-        expense_name: str,
-        ts: int,
-    ) -> NoReturn:
-        """
-        Adds an expense where all participants paid equally
-
-        :param group_id: group id
-        :param lender_id: id of a person who paid
-        :param lent_sum: sum that lender paid
-        :param debtors: list of debtor ids
-        :param expense_name: some notes about the expense
-        :param ts: time of expense adding in unix timestamp format
-        """
-        raise NotImplementedError
-
     def add_debt(
             self,
             expense_id: int,
@@ -157,29 +118,76 @@ class SplitwiseApp:
     ) -> int:
         return self.conn.save_debt_info(expense_id, lender_id, debtor_id, sum_)
 
-    def get_debts_of_expense(
-            self,
-            expense_id: int,
-    ) -> dict:
-        return self.conn.get_debts_of_expense(expense_id)
-
-    def show_debts(
+    def get_final_transactions(
         self,
         token: str,
     ) -> dict:
         users = self.get_users_of_event(token)
+        users_map = dict()
         users_balance = dict()
         for user in users:
             users_balance[user['id']] = 0.
+            users_map[user['id']] = user['name']
 
         users_expenses = self.conn.get_event_expenses(token)
         expenses_id = list()
-        for ue in users_expenses:
-            expenses_id.append(ue[0])
-            users_balance[ue[1]] -= ue[2]
+        for user_expenses in users_expenses:
+            expenses_id.append(user_expenses[0])
+            users_balance[user_expenses[1]] -= user_expenses[2]
 
         debts = self.conn.get_debts_of_expenses(expenses_id)
         for debt in debts:
             users_balance[debt[0]] += debt[1]
+        lenders = [(-sum_, id_) for id_, sum_ in users_balance.items() if sum_ < 0]
+        debtors = [(sum_, id_) for id_, sum_ in users_balance.items() if sum_ > 0]
+        lenders.sort(reverse=True)
+        debtors.sort(reverse=True)
 
-        return users_balance
+        lenders_deque = deque()
+        for item in lenders:
+            lenders_deque.append(item)
+
+        debtors_deque = deque()
+        for item in debtors:
+            debtors_deque.append(item)
+
+        transactions = defaultdict(list)
+        inverse_transactions = defaultdict(list)
+        lender_sum, lender_id = lenders_deque.popleft()
+        debtor_sum, debtor_id = debtors_deque.popleft()
+        while True:
+            payment_sum = min(lender_sum, debtor_sum)
+            transactions[debtor_id].append((users_map[lender_id], payment_sum))
+            inverse_transactions[lender_id].append((users_map[debtor_id], payment_sum))
+            lender_sum -= payment_sum
+            debtor_sum -= payment_sum
+            if abs(debtor_sum) < 0.001:
+                if not debtors_deque:
+                    break
+                else:
+                    debtor_sum, debtor_id = debtors_deque.popleft()
+
+            if abs(lender_sum) < 0.001:
+                if not lenders_deque:
+                    break
+                else:
+                    lender_sum, lender_id = lenders_deque.popleft()
+
+        return transactions, inverse_transactions
+
+
+
+
+
+
+        for sum_, id_ in lenders:
+            while sum_ > 0:
+                debtor_sum, debtor_id = debtors[0]
+                if sum_ > debtor_sum:
+                    sum_ = 0
+
+
+                debtors = debtors[1:]
+
+
+
