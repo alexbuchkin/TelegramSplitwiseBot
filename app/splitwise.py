@@ -64,6 +64,9 @@ class SplitwiseApp:
         user_id: int,
         event_name: str,
     ) -> str:
+        """
+        @return: token of the created event
+        """
         event_token = str(uuid.uuid4())
         self.conn.create_event(
             event=Event(event_token, event_name),
@@ -115,6 +118,11 @@ class SplitwiseApp:
         self,
         event_token: str,
     ) -> Tuple[Dict, Dict]:
+        """
+
+        @param event_token: event token
+        @return: tuple (lenders_info, debtors_info)
+        """
         users = self.get_users_of_event(event_token)
         usernames = {user.id: user.name for user in users}
         users_balance = defaultdict(lambda: {
@@ -170,4 +178,4 @@ class SplitwiseApp:
 
         if lenders_deque or debtors_deque:
             raise RuntimeError('Something went wrong while calculating final transactions')
-        return lenders_info, debtors_info
+        return dict(lenders_info), dict(debtors_info)

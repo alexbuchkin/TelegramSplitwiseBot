@@ -16,7 +16,11 @@ class Connector:
         """
         Establishes connection to database etc.
         """
-        self.conn = sqlite3.connect('database.sqlite', isolation_level='EXCLUSIVE')
+        self.conn = sqlite3.connect(
+            'database.sqlite',
+            check_same_thread=False,
+            isolation_level='EXCLUSIVE',
+        )
         self._create_database()
 
     def _create_database(self) -> NoReturn:
@@ -84,7 +88,7 @@ class Connector:
         event = cursor.execute('SELECT * FROM events WHERE id = ?', (event_token,)).fetchone()
         if not event:
             raise KeyError(f'Event with token {event_token} does not exist')
-        return Event(event)
+        return Event(*event)
 
     def save_user_info(
         self,
@@ -105,7 +109,7 @@ class Connector:
     ) -> Optional[User]:
         cursor = self.conn.cursor()
         user = cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-        return None if user is None else User(user)
+        return None if user is None else User(*user)
 
     def get_users_of_event(
         self,
@@ -118,7 +122,7 @@ class Connector:
             'WHERE u.id = u2e.user_id AND u2e.event_token = ?',
             (event_token,)
         ).fetchall()
-        return [User(user) for user in (users or [])]
+        return [User(*user[:2]) for user in (users or [])]
 
     def save_debt_info(
         self,
@@ -162,7 +166,7 @@ class Connector:
     ) -> Expense:
         cursor = self.conn.cursor()
         expense = cursor.execute('SELECT * FROM expenses WHERE id = ?', (expense_id,))
-        return Expense(expense.fetchone())
+        return Expense(*expense.fetchone())
 
     def get_event_expenses(
         self,
@@ -170,7 +174,7 @@ class Connector:
     ) -> List[Expense]:
         cursor = self.conn.cursor()
         expenses = cursor.execute('SELECT * FROM expenses WHERE event_token = ?', (event_token,))
-        return [Expense(item) for item in expenses.fetchall()]
+        return [Expense(*item) for item in expenses.fetchall()]
 
     def get_debts_by_expenses(
         self,
@@ -180,7 +184,7 @@ class Connector:
         sql_query = 'SELECT * FROM debts WHERE expense_id in ({seq})'.format(
             seq=','.join('?' * len(expense_ids))
         )
-        return [Debt(item) for item in cursor.execute(sql_query, expense_ids).fetchall()]
+        return [Debt(*item) for item in cursor.execute(sql_query, expense_ids).fetchall()]
 
     def __del__(self):
         """

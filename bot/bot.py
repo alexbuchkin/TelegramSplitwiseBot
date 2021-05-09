@@ -14,7 +14,6 @@ from app.splitwise import SplitwiseApp
 from bot import buttons
 from database.types import (
     User,
-    Event,
     Expense,
     Debt,
 )
@@ -31,12 +30,12 @@ class TelegramBot:
         self.debts = dict()
         self.states = dict()
         dispatcher = self.updater.dispatcher
-        dispatcher.add_handler(CommandHandler("create_event", self.create_event_handler))
-        dispatcher.add_handler(CommandHandler("add_expense", self.add_expense_handler))
-        dispatcher.add_handler(CommandHandler("show_debts", self.show_debts_handler))
-        dispatcher.add_handler(CommandHandler("users_of_event", self.users_of_event_handler))
-        dispatcher.add_handler(CommandHandler("join_event", self.join_event_handler))
-        dispatcher.add_handler(CommandHandler("start", self.start_handler))
+        dispatcher.add_handler(CommandHandler('create_event', self.create_event_handler))
+        dispatcher.add_handler(CommandHandler('add_expense', self.add_expense_handler))
+        dispatcher.add_handler(CommandHandler('show_debts', self.show_debts_handler))
+        dispatcher.add_handler(CommandHandler('users_of_event', self.users_of_event_handler))
+        dispatcher.add_handler(CommandHandler('join_event', self.join_event_handler))
+        dispatcher.add_handler(CommandHandler('start', self.start_handler))
         dispatcher.add_handler(CallbackQueryHandler(self.callback_query_handler))
         dispatcher.add_handler(MessageHandler(Filters.text, self.text_handler))
 
@@ -141,7 +140,7 @@ class BeginningState:
         )
 
     def callback_query_handler(self, update: Update):
-        update.effective_chat.send_message("Хватит на кнопочки тыкать. Введи лучше команду")
+        update.effective_chat.send_message('Хватит на кнопочки тыкать. Введи лучше команду')
 
     def create_event_handler(
         self,
@@ -191,19 +190,18 @@ class ShowDebtsTokenState:
     def text_handler(
         self,
         update: Update,
-        _: CallbackContext
+        _: CallbackContext,
     ) -> NoReturn:
         token = update.effective_message.text
         user_id = update.effective_user.id
-        transaction, inverse_transaction = self.bot_.splitwise.get_final_transactions(token)
-        if transaction[user_id]:
-            update.effective_chat.send_message('Вы должны: \n' + str(transaction.get(user_id)))
-        elif inverse_transaction[user_id]:
-            update.effective_chat.send_message('Вам должны: \n' + str(inverse_transaction.get(user_id)))
+        lenders_info, debtors_info = self.bot_.splitwise.get_final_transactions(token)
+        if user_id in debtors_info:
+            update.effective_chat.send_message('Вы должны: \n' + str(debtors_info[user_id]))
+        elif user_id in lenders_info:
+            update.effective_chat.send_message('Вам должны: \n' + str(lenders_info[user_id]))
         else:
             update.effective_chat.send_message('Вы никому не должны и вам никто не должен')
         del self.bot_.states[update.effective_user.id]
-
 
     def callback_query_handler(self, update: Update):
         update.effective_chat.send_message("Давай токен говори")
@@ -245,25 +243,26 @@ class JoinEventTokenState:
     def text_handler(
         self,
         update: Update,
-        _: CallbackContext
+        _: CallbackContext,
     ) -> NoReturn:
         event_token = update.effective_message.text
-        event = self.bot_.splitwise.get_event_info(event_token)
         user_id = update.effective_user.id
-        if event is None or len(event) != 2:
+        try:
+            event = self.bot_.splitwise.get_event_info(event_token)
+        except KeyError:
             del self.bot_.states[update.effective_user.id]
             update.effective_chat.send_message('Мероприятия с таким токеном не существует.')
             return
         if self.bot_.splitwise.user_participates_in_event(user_id, event_token):
             del self.bot_.states[update.effective_user.id]
-            update.effective_chat.send_message("Не прокатит! Ты уже зарегистрирован в мероприятии")
+            update.effective_chat.send_message('Не прокатит! Ты уже зарегистрирован в мероприятии')
             return
         self.bot_.splitwise.add_user_to_event(user_id, event_token)
         del self.bot_.states[update.effective_user.id]
-        update.effective_chat.send_message("Ты успешно присоединился к мероприятию ")
+        update.effective_chat.send_message('Ты успешно присоединился к мероприятию')
 
     def callback_query_handler(self, update: Update):
-        update.effective_chat.send_message("Давай токен говори")
+        update.effective_chat.send_message('Давай токен говори')
 
     def create_event_handler(
         self,
@@ -302,7 +301,7 @@ class EventNameState:
     def text_handler(
         self,
         update: Update,
-        _: CallbackContext
+        _: CallbackContext,
     ) -> NoReturn:
         event_name = update.effective_message.text
         event_token = self.bot_.splitwise.create_event(
@@ -316,7 +315,7 @@ class EventNameState:
         del self.bot_.states[update.effective_user.id]
 
     def callback_query_handler(self, update: Update):
-        update.effective_chat.send_message("Давай имя говори")
+        update.effective_chat.send_message('Давай имя говори')
 
     def create_event_handler(
         self,
@@ -355,41 +354,44 @@ class ExpenseTokenState:
     def text_handler(
         self,
         update: Update,
-        _: CallbackContext
+        _: CallbackContext,
     ) -> NoReturn:
-        expense_token = update.effective_message.text
+        event_token = update.effective_message.text
         user_id = update.effective_user.id
-        event = self.bot_.splitwise.get_event_info(expense_token)
-        if event is None or len(event) != 2:
+        try:
+            event = self.bot_.splitwise.get_event_info(event_token)
+        except KeyError:
             del self.bot_.states[update.effective_user.id]
             update.effective_chat.send_message('Мероприятия с таким токеном не существует. Повторите создание траты.')
             return
-        user_expense = {"id": None, "name": None, "token": expense_token, "sum": None}
-        self.bot_.expenses[user_id] = user_expense
+        expense = Expense(None, None, None, None, None, None)
+        expense.event_token = event_token
+        expense.lender_id = user_id
+        self.bot_.expenses[user_id] = expense
         self.bot_.states[update.effective_user.id] = ExpenseNameState(self.bot_)
         update.effective_chat.send_message('Введи название траты.')
 
     def callback_query_handler(self, update: Update):
-        update.effective_chat.send_message("Нужен токен мероприятия")
+        update.effective_chat.send_message('Нужен токен мероприятия')
 
     def create_event_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Мимо кассы. Нужен токен мероприятия.')
 
     def add_expense_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Мимо кассы. Нужен токен мероприятия.')
 
     def show_debts_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Мимо кассы. Нужен токен мероприятия.')
 
@@ -409,35 +411,35 @@ class ExpenseNameState:
     def text_handler(
         self,
         update: Update,
-        _: CallbackContext
+        _: CallbackContext,
     ) -> NoReturn:
         expense_name = update.effective_message.text
         user_id = update.effective_user.id
-        self.bot_.expenses[user_id]['name'] = expense_name
+        self.bot_.expenses[user_id].name = expense_name
         self.bot_.states[update.effective_user.id] = ExpenseSumState(self.bot_)
         update.effective_chat.send_message('Введи потраченную сумму.')
 
     def callback_query_handler(self, update: Update):
-        update.effective_chat.send_message("Название траты говори")
+        update.effective_chat.send_message('Название траты говори')
 
     def create_event_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Имя')
 
     def add_expense_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Мне нужно имя')
 
     def show_debts_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Говори имя')
 
@@ -457,50 +459,48 @@ class ExpenseSumState:
     def text_handler(
         self,
         update: Update,
-        _: CallbackContext
+        _: CallbackContext,
     ) -> NoReturn:
+        # let's use integer division and forget about cents for some time
         expense_sum = update.effective_message.text
         user_id = update.effective_user.id
         try:
-            expense_sum = float(expense_sum)
+            expense_sum = int(expense_sum)
         except ValueError:
-            update.effective_chat.send_message('Потраченная сумма вводится в формате: 123(целое число) или '
-                                               '456.23(дробная число, целая часть от дробной отделяется точкой. '
+            update.effective_chat.send_message('Потраченная сумма вводится в формате: 123(целое число). '
                                                'Попробуй еще раз')
             return
 
-        self.bot_.expenses[user_id]["sum"] = expense_sum
-        expense = self.bot_.expenses[user_id]
-        expense_id = self.bot_.splitwise.add_expense(expense['name'], user_id, expense['token'], expense['sum'])
-        self.bot_.expenses[user_id]["id"] = expense_id
+        expense_id = self.bot_.splitwise.add_expense(self.bot_.expenses[user_id])
+        self.bot_.expenses[user_id].id = expense_id
         expense = self.bot_.splitwise.get_expense(expense_id)
         update.effective_chat.send_message(f'Создана трата: {str(expense)}.')
         self.bot_.states[update.effective_user.id] = DebtNameState(self.bot_)
         update.effective_chat.send_message('Приступим к записи долгов')
-        users = self.bot_.splitwise.get_users_of_event(self.bot_.expenses[user_id]['token'])
+        users = self.bot_.splitwise.get_users_of_event(self.bot_.expenses[user_id].event_token)
         update.effective_chat.send_message('Назови имя должника', reply_markup=buttons.get_user_buttons(users))
 
     def callback_query_handler(self, update: Update):
         update.effective_chat.send_message('Потраченную сумму!')
 
     def create_event_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Потраченную сумму!')
 
     def add_expense_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Потраченную сумму!')
 
     def show_debts_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Потраченную сумму!')
 
@@ -518,44 +518,44 @@ class DebtNameState:
         update.effective_chat.send_message('Не то!')
 
     def text_handler(
-            self,
-            update: Update,
-            _: CallbackContext
+        self,
+        update: Update,
+        _: CallbackContext,
     ) -> NoReturn:
         if update.effective_message.text == 'все':
             del self.bot_.states[update.effective_user.id]
             del self.bot_.expenses[update.effective_user.id]
             del self.bot_.debts[update.effective_user.id]
             return
-        update.effective_chat.send_message("Просто тыкни на  кнопку")
+        update.effective_chat.send_message('Просто тыкни на  кнопку')
 
     def callback_query_handler(self, update: Update):
         query = update.callback_query
-        user_id = query.data
-        user_debt = {"user_id": user_id, "sum": None}
+        user_debt = Debt(None, None, None)
+        user_debt.lender_id = update.effective_user.id
+        user_debt.debtor_id = query.data
         self.bot_.debts[update.effective_user.id] = user_debt
         self.bot_.states[update.effective_user.id] = DebtSumState(self.bot_)
-        query.answer("Сашка порванная рубашка")
-        update.effective_chat.send_message("Сколько он тебе задолжал?")
+        update.effective_chat.send_message('Сколько он тебе задолжал?')
 
     def create_event_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Просто тыкни на  кнопку')
 
     def add_expense_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('На кнопку жми')
 
     def show_debts_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('На кнопку жми!')
 
@@ -573,26 +573,25 @@ class DebtSumState:
         update.effective_chat.send_message('Введи сумму')
 
     def text_handler(
-            self,
-            update: Update,
-            _: CallbackContext
+        self,
+        update: Update,
+        _: CallbackContext,
     ) -> NoReturn:
         debt_sum = update.effective_message.text
         user_id = update.effective_user.id
         try:
-            debt_sum = float(debt_sum)
+            debt_sum = int(debt_sum)
         except ValueError:
-            update.effective_chat.send_message('Долг вводится в формате: 123(целое число) или '
-                                               '456.23(дробная число, целая часть от дробной отделяется точкой. '
+            update.effective_chat.send_message('Долг вводится в формате: 123(целое число). '
                                                'Попробуй еще раз')
             return
 
-        self.bot_.debts[user_id]["sum"] = debt_sum
-        expense = self.bot_.expenses[user_id]
+        self.bot_.debts[user_id].sum = debt_sum
+        self.bot_.debts[user_id].expense_id = self.bot_.expenses[user_id].id
         debt = self.bot_.debts[user_id]
-        self.bot_.splitwise.add_debt(expense['id'], user_id, debt['user_id'], debt['sum'])
+        self.bot_.splitwise.add_debt(debt)
         update.effective_chat.send_message('Записал!')
-        self.bot_.debts[user_id] = None
+        del self.bot_.debts[user_id]
         users = self.bot_.splitwise.get_users_of_event(self.bot_.expenses[user_id]['token'])
         self.bot_.states[update.effective_user.id] = DebtNameState(self.bot_)
         update.effective_chat.send_message('Назови имя следующего должника или напиши "все", чтобы закончить', reply_markup=buttons.get_user_buttons(users))
@@ -601,23 +600,23 @@ class DebtSumState:
         update.effective_chat.send_message("Сколько он тебе задолжал?")
 
     def create_event_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Введи сумму')
 
     def add_expense_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Введи сумму')
 
     def show_debts_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Введи сумму')
 
