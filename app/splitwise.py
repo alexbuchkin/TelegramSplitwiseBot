@@ -1,11 +1,16 @@
 import logging
-import sqlite3
 import uuid
 from collections import deque, defaultdict
 from datetime import datetime
-from typing import NoReturn, List, Optional
+from typing import NoReturn, List, Dict, Tuple
 
 from database.connector import Connector
+from database.types import (
+    User,
+    Event,
+    Expense,
+    Debt,
+)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -20,15 +25,14 @@ class SplitwiseApp:
 
     def add_new_user(
         self,
-        user_id: int,
-        name: str,
+        user: User,
     ) -> NoReturn:
-        self.conn.save_user_info(user_id, name)
+        self.conn.save_user_info(user)
 
     def get_user_info(
         self,
-        user_id: str,
-    ) -> dict:
+        user_id: int,
+    ) -> User:
         user_info = self.conn.get_user_info_or_none(user_id)
         if user_info is None:
             raise KeyError(f'User with id = {user_id} does not exist')
@@ -36,158 +40,134 @@ class SplitwiseApp:
 
     def get_users_of_event(
         self,
-        token: str,
-    ) -> list:
-        users = self.conn.get_users_of_event(token)
-        if users is None or len(users) == 0:
-            raise KeyError(f'There are no users in event with id = {token}')
-        res = list()
-        for user in users:
-            user_dict = {'id': user[0], 'name': user[1]}
-            res.append(user_dict)
-        return res
+        event_token: str,
+    ) -> List[User]:
+        users = self.conn.get_users_of_event(event_token)
+        if not users:
+            raise KeyError(f'There are no users in event with id = {event_token}')
+        return users
 
     def get_event_info(
         self,
-        token: str,
-    ) -> dict:
-        users = self.conn.get_event_info(token)
-        return users
+        event_token: str,
+    ) -> Event:
+        return self.conn.get_event_info(event_token)
 
     def user_exists(
         self,
         user_id: int,
-    ):
+    ) -> bool:
         return self.conn.get_user_info_or_none(user_id) is not None
 
     def create_event(
         self,
         user_id: int,
         event_name: str,
-    ) -> Optional[str]:
+    ) -> str:
         event_token = str(uuid.uuid4())
-        try:
-            self.conn.create_event(
-                event_name=event_name,
-                event_token=event_token,
-                user_id=user_id,
-            )
-            log.info(f'User {user_id} created event "{event_name}" with token {event_token}')
-            return event_token
-        except sqlite3.Error as err:
-            return None
+        self.conn.create_event(
+            event=Event(event_token, event_name),
+            user_id=user_id,
+        )
+        log.info(f'User {user_id} created event "{event_name}" with token {event_token}')
+        return event_token
 
     def add_expense(
         self,
-        name: str,
-        lender_id: int,
-        event_id: str,
-        sum_: float
+        expense: Expense,
     ) -> int:
-        time = datetime.now()
-        id_ = self.conn.save_expense_info(name, lender_id, event_id, sum_, time)
-        return id_
+        """
+        Adds expense to database
+        Fields 'name', 'sum', 'lender_id', 'event_token' are required
+        Fields 'id', 'datetime' will be ignored
+        """
+        expense.id = None  # will be filled after expense being added to db
+        expense.datetime = datetime.now()
+        return self.conn.save_expense_info(expense)
 
     def add_user_to_event(
         self,
         user_id: int,
-        event_id: str
+        event_token: str
     ) -> NoReturn:
-        self.conn.add_user_to_event(user_id, event_id)
+        self.conn.add_user_to_event(user_id, event_token)
 
-    def get_user_event(
+    def user_participates_in_event(
         self,
         user_id: int,
-        event_id: str
-    ) -> list:
-        return self.conn.get_user_event(user_id, event_id)
+        event_token: str,
+    ) -> bool:
+        return self.conn.user_participates_in_event(user_id, event_token)
 
     def get_expense(
         self,
-        expense_id: int
-    ) -> dict:
-        expense = self.conn.get_expense_info(expense_id)
-        return expense
+        expense_id: int,
+    ) -> Expense:
+        return self.conn.get_expense_info(expense_id)
 
     def add_debt(
-            self,
-            expense_id: int,
-            lender_id: int,
-            debtor_id: int,
-            sum_: float,
+        self,
+        debt: Debt,
     ) -> int:
-        return self.conn.save_debt_info(expense_id, lender_id, debtor_id, sum_)
+        return self.conn.save_debt_info(debt)
 
     def get_final_transactions(
         self,
-        token: str,
-    ) -> dict:
-        users = self.get_users_of_event(token)
-        users_map = dict()
-        users_balance = dict()
-        for user in users:
-            users_balance[user['id']] = 0.
-            users_map[user['id']] = user['name']
+        event_token: str,
+    ) -> Tuple[Dict, Dict]:
+        users = self.get_users_of_event(event_token)
+        usernames = {user.id: user.name for user in users}
+        users_balance = defaultdict(lambda: {
+            'lent': 0,
+            'owed': 0,
+        })
 
-        users_expenses = self.conn.get_event_expenses(token)
-        expenses_id = list()
-        for user_expenses in users_expenses:
-            expenses_id.append(user_expenses[0])
-            users_balance[user_expenses[1]] -= user_expenses[2]
+        event_expenses = self.conn.get_event_expenses(event_token)
+        for expense in event_expenses:
+            users_balance[expense.lender_id]['lent'] += expense.sum
 
-        debts = self.conn.get_debts_of_expenses(expenses_id)
-        for debt in debts:
-            users_balance[debt[0]] += debt[1]
-        lenders = [(-sum_, id_) for id_, sum_ in users_balance.items() if sum_ < 0]
-        debtors = [(sum_, id_) for id_, sum_ in users_balance.items() if sum_ > 0]
+        event_debts = self.conn.get_debts_by_expenses([expense.id for expense in event_expenses])
+        for debt in event_debts:
+            users_balance[debt.debtor_id] += debt.sum
+        lenders = [
+            (user_balance['lent'] - user_balance['owed'], user_id)
+            for user_id, user_balance in users_balance.items()
+            if user_balance['lent'] > user_balance['owed']
+        ]
+        debtors = [
+            (user_balance['owed'] - user_balance['lent'], user_id)
+            for user_id, user_balance in users_balance.items()
+            if user_balance['lent'] < user_balance['owed']
+        ]
         lenders.sort(reverse=True)
         debtors.sort(reverse=True)
 
-        lenders_deque = deque()
-        for item in lenders:
-            lenders_deque.append(item)
+        lenders_deque = deque(lenders)
+        debtors_deque = deque(debtors)
 
-        debtors_deque = deque()
-        for item in debtors:
-            debtors_deque.append(item)
-
-        transactions = defaultdict(list)
-        inverse_transactions = defaultdict(list)
+        lenders_info = defaultdict(list)
+        debtors_info = defaultdict(list)
         lender_sum, lender_id = lenders_deque.popleft()
         debtor_sum, debtor_id = debtors_deque.popleft()
         while True:
             payment_sum = min(lender_sum, debtor_sum)
-            transactions[debtor_id].append((users_map[lender_id], payment_sum))
-            inverse_transactions[lender_id].append((users_map[debtor_id], payment_sum))
-            lender_sum -= payment_sum
-            debtor_sum -= payment_sum
-            if abs(debtor_sum) < 0.001:
-                if not debtors_deque:
-                    break
-                else:
-                    debtor_sum, debtor_id = debtors_deque.popleft()
+            lenders_info[lender_id].append((usernames[debtor_id], payment_sum))
+            debtors_info[debtor_id].append((usernames[lender_id], payment_sum))
 
-            if abs(lender_sum) < 0.001:
+            lender_sum -= payment_sum
+            if lender_sum == 0:
                 if not lenders_deque:
                     break
                 else:
                     lender_sum, lender_id = lenders_deque.popleft()
 
-        return transactions, inverse_transactions
+            debtor_sum -= payment_sum
+            if debtor_sum == 0:
+                if not debtors_deque:
+                    break
+                else:
+                    debtor_sum, debtor_id = debtors_deque.popleft()
 
-
-
-
-
-
-        for sum_, id_ in lenders:
-            while sum_ > 0:
-                debtor_sum, debtor_id = debtors[0]
-                if sum_ > debtor_sum:
-                    sum_ = 0
-
-
-                debtors = debtors[1:]
-
-
-
+        if lenders_deque or debtors_deque:
+            raise RuntimeError('Something went wrong while calculating final transactions')
+        return lenders_info, debtors_info
