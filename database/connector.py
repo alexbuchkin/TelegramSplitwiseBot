@@ -88,7 +88,7 @@ class Connector:
         event_token: str,
     ) -> Event:
         cursor = self.conn.cursor()
-        event = cursor.execute('SELECT * FROM events WHERE id = ?', (event_token,)).fetchone()
+        event = cursor.execute('SELECT * FROM events WHERE token = ?', (event_token,)).fetchone()
         if not event:
             raise KeyError(f'Event with token {event_token} does not exist')
         return Event(token=event[0], name=event[1])
@@ -220,3 +220,8 @@ class Connector:
         cursor = self.conn.cursor()
         result = cursor.execute('SELECT * FROM users').fetchall()
         return [User(id=item[0], name=item[1]) for item in result]
+
+    def get_all_events(self) -> List[Event]:
+        cursor = self.conn.cursor()
+        result = cursor.execute('SELECT * FROM events').fetchall()
+        return [Event(token=item[0], name=item[1]) for item in result]

@@ -66,11 +66,12 @@ class SplitwiseApp:
         self,
         user_id: int,
         event_name: str,
+        event_token: str = str(uuid.uuid4()),
     ) -> str:
         """
+        token may be provided. If not, it will be set to uuid4()
         @return: token of the created event
         """
-        event_token = str(uuid.uuid4())
         self.conn.create_event(
             event=Event(event_token, event_name),
             user_id=user_id,
@@ -189,3 +190,6 @@ class SplitwiseApp:
     # please do not use them in production
     def get_all_users(self) -> List[User]:
         return self.conn.get_all_users()
+
+    def get_all_events(self) -> List[Event]:
+        return self.conn.get_all_events()
