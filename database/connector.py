@@ -88,7 +88,7 @@ class Connector:
         event = cursor.execute('SELECT * FROM events WHERE id = ?', (event_token,)).fetchone()
         if not event:
             raise KeyError(f'Event with token {event_token} does not exist')
-        return Event(*event)
+        return Event(token=event[0], name=event[1])
 
     def save_user_info(
         self,
@@ -109,7 +109,7 @@ class Connector:
     ) -> Optional[User]:
         cursor = self.conn.cursor()
         user = cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-        return None if user is None else User(*user)
+        return None if user is None else User(id=user[0], name=user[1])
 
     def get_users_of_event(
         self,
@@ -122,7 +122,7 @@ class Connector:
             'WHERE u.id = u2e.user_id AND u2e.event_token = ?',
             (event_token,)
         ).fetchall()
-        return [User(*user[:2]) for user in (users or [])]
+        return [User(id=user[0], name=user[1]) for user in (users or [])]
 
     def save_debt_info(
         self,
@@ -165,8 +165,15 @@ class Connector:
         expense_id: int,
     ) -> Expense:
         cursor = self.conn.cursor()
-        expense = cursor.execute('SELECT * FROM expenses WHERE id = ?', (expense_id,))
-        return Expense(*expense.fetchone())
+        expense = cursor.execute('SELECT * FROM expenses WHERE id = ?', (expense_id,)).fetchone()
+        return Expense(
+            id=expense[0],
+            name=expense[1],
+            sum=expense[2],
+            lender_id=expense[3],
+            event_token=expense[4],
+            datetime=expense[5],
+        )
 
     def get_event_expenses(
         self,
@@ -174,7 +181,14 @@ class Connector:
     ) -> List[Expense]:
         cursor = self.conn.cursor()
         expenses = cursor.execute('SELECT * FROM expenses WHERE event_token = ?', (event_token,))
-        return [Expense(*item) for item in expenses.fetchall()]
+        return [Expense(
+            id=item[0],
+            name=item[1],
+            sum=item[2],
+            lender_id=item[3],
+            event_token=item[4],
+            datetime=item[5],
+        ) for item in expenses.fetchall()]
 
     def get_debts_by_expenses(
         self,
@@ -184,7 +198,12 @@ class Connector:
         sql_query = 'SELECT * FROM debts WHERE expense_id in ({seq})'.format(
             seq=','.join('?' * len(expense_ids))
         )
-        return [Debt(*item) for item in cursor.execute(sql_query, expense_ids).fetchall()]
+        return [Debt(
+            expense_id=item[0],
+            lender_id=item[1],
+            debtor_id=item[2],
+            sum=item[3],
+        ) for item in cursor.execute(sql_query, expense_ids).fetchall()]
 
     def __del__(self):
         """
