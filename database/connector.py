@@ -12,12 +12,15 @@ from database.types import (
 
 
 class Connector:
-    def __init__(self):
+    def __init__(
+        self,
+        db_name: str = 'database.sqlite',
+    ):
         """
         Establishes connection to database etc.
         """
         self.conn = sqlite3.connect(
-            'database.sqlite',
+            db_name,
             check_same_thread=False,
             isolation_level='EXCLUSIVE',
         )
@@ -210,3 +213,10 @@ class Connector:
         Closes connection etc.
         """
         self.conn.close()
+
+    # following methods are for testing purposes only
+    # please do not use them in production
+    def get_all_users(self) -> List[User]:
+        cursor = self.conn.cursor()
+        result = cursor.execute('SELECT * FROM users').fetchall()
+        return [User(id=item[0], name=item[1]) for item in result]

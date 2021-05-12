@@ -23,8 +23,9 @@ class TelegramBot:
     def __init__(
         self,
         token: str,
+        db_name: str = 'database.sqlite',
     ):
-        self.splitwise = SplitwiseApp()
+        self.splitwise = SplitwiseApp(db_name=db_name)
         self.updater = Updater(token)
         self.expenses = dict()
         self.debts = dict()

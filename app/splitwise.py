@@ -17,11 +17,14 @@ log = logging.getLogger(__name__)
 
 
 class SplitwiseApp:
-    def __init__(self):
+    def __init__(
+        self,
+        db_name: str = 'database.sqlite',
+    ):
         """
         Creates database connector etc.
         """
-        self.conn = Connector()
+        self.conn = Connector(db_name=db_name)
 
     def add_new_user(
         self,
@@ -119,7 +122,6 @@ class SplitwiseApp:
         event_token: str,
     ) -> Tuple[Dict, Dict]:
         """
-
         @param event_token: event token
         @return: tuple (lenders_info, debtors_info)
         """
@@ -182,3 +184,8 @@ class SplitwiseApp:
         if lenders_deque or debtors_deque:
             raise RuntimeError('Something went wrong while calculating final transactions')
         return dict(lenders_info), dict(debtors_info)
+
+    # following methods are for testing purposes only
+    # please do not use them in production
+    def get_all_users(self) -> List[User]:
+        return self.conn.get_all_users()
