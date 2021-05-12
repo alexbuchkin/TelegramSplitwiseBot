@@ -111,7 +111,7 @@ class TelegramBot:
         _: CallbackContext,
     ) -> NoReturn:
         id_ = update.effective_user.id
-        name = update.effective_user.full_name
+        name = update.effective_user.username or update.effective_user.full_name
 
         if self.splitwise.user_exists(id_):
             name = self.splitwise.get_user_info(id_).name
@@ -364,7 +364,7 @@ class ExpenseTokenState:
             del self.bot_.states[update.effective_user.id]
             update.effective_chat.send_message('Мероприятия с таким токеном не существует. Повторите создание траты.')
             return
-        expense = Expense(None, None, None, None, None, None)
+        expense = Expense()
         expense.event_token = event_token
         expense.lender_id = user_id
         self.bot_.expenses[user_id] = expense
@@ -471,6 +471,7 @@ class ExpenseSumState:
                                                'Попробуй еще раз')
             return
 
+        self.bot_.expenses[user_id].sum = expense_sum
         expense_id = self.bot_.splitwise.add_expense(self.bot_.expenses[user_id])
         self.bot_.expenses[user_id].id = expense_id
         expense = self.bot_.splitwise.get_expense(expense_id)
@@ -531,7 +532,7 @@ class DebtNameState:
 
     def callback_query_handler(self, update: Update):
         query = update.callback_query
-        user_debt = Debt(None, None, None)
+        user_debt = Debt()
         user_debt.lender_id = update.effective_user.id
         user_debt.debtor_id = query.data
         self.bot_.debts[update.effective_user.id] = user_debt
