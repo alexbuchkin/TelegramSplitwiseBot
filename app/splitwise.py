@@ -150,6 +150,9 @@ class SplitwiseApp:
         lenders.sort(reverse=True)
         debtors.sort(reverse=True)
 
+        if not lenders and not debtors:
+            return {}, {}
+
         lenders_deque = deque(lenders)
         debtors_deque = deque(debtors)
 
