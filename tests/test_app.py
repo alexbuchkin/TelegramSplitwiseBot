@@ -93,3 +93,33 @@ def test_adding_users_to_events(app):
 
     expected_user2event_data = [(user.id, event.token) for user in USERS for event in EVENTS]
     assert sorted(expected_user2event_data) == sorted(app.get_all_user2event())
+
+
+def test_final_transactions(app):
+    for user in USERS:
+        app.add_new_user(user)
+
+    event_token = app.create_event(user_id=USERS[0].id, event_name='Test event')
+    expense_id = app.add_expense(Expense(
+        name='first expense',
+        sum=100 * len(USERS),
+        lender_id=USERS[0].id,
+        event_token=event_token,
+    ))
+    for user in USERS[1:]:
+        app.add_user_to_event(user_id=user.id, event_token=event_token)
+        app.add_debt(Debt(
+            expense_id=expense_id,
+            lender_id=USERS[0].id,
+            debtor_id=user.id,
+            sum=100,
+        ))
+
+    lenders_info, debtors_info = app.get_final_transactions(event_token)
+
+    assert list(lenders_info.keys()) == [USERS[0].id]
+    assert sorted(lenders_info[USERS[0].id]) == sorted([(user.name, 100) for user in USERS[1:]])
+
+    assert sorted(list(debtors_info.keys())) == sorted([user.id for user in USERS[1:]])
+    for _, debt_list in debtors_info.items():
+        assert debt_list == [(USERS[0].name, 100)]

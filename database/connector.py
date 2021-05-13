@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import NoReturn, Optional, List
+from typing import NoReturn, Optional, List, Tuple
 
 import sqlite3
 
@@ -225,3 +225,7 @@ class Connector:
         cursor = self.conn.cursor()
         result = cursor.execute('SELECT * FROM events').fetchall()
         return [Event(token=item[0], name=item[1]) for item in result]
+
+    def get_all_user2event(self) -> List[Tuple[int, str]]:
+        cursor = self.conn.cursor()
+        return cursor.execute('SELECT * FROM user2event').fetchall()
