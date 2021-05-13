@@ -69,7 +69,7 @@ class SplitwiseApp:
         event_token: str = str(uuid.uuid4()),
     ) -> str:
         """
-        token may be provided. If not, it will be set to uuid4()
+        Token may be provided (for testing purposes mainly). If not, it will be set to uuid4()
         @return: token of the created event
         """
         self.conn.create_event(
@@ -87,6 +87,7 @@ class SplitwiseApp:
         Adds expense to database
         Fields 'name', 'sum', 'lender_id', 'event_token' are required
         Fields 'id', 'datetime' will be ignored
+        @return: expense_id
         """
         expense.id = None  # will be filled after expense being added to db
         expense.datetime = datetime.now()
@@ -139,7 +140,7 @@ class SplitwiseApp:
 
         event_debts = self.conn.get_debts_by_expenses([expense.id for expense in event_expenses])
         for debt in event_debts:
-            users_balance[debt.debtor_id] += debt.sum
+            users_balance[debt.debtor_id]['owed'] += debt.sum
         lenders = [
             (user_balance['lent'] - user_balance['owed'], user_id)
             for user_id, user_balance in users_balance.items()
@@ -193,3 +194,6 @@ class SplitwiseApp:
 
     def get_all_events(self) -> List[Event]:
         return self.conn.get_all_events()
+
+    def get_all_user2event(self) -> List[Tuple[int, str]]:
+        return self.conn.get_all_user2event()
