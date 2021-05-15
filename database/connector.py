@@ -52,7 +52,6 @@ class Connector:
         """
         try:
             cursor = self.conn.cursor()
-            cursor.execute('BEGIN')
             cursor.execute('INSERT INTO events (token, name) VALUES(?, ?)', (event.token, event.name))
             cursor.execute('INSERT INTO user2event (user_id, event_token) VALUES(?, ?)', (user_id, event.token))
             self.conn.commit()
@@ -67,7 +66,6 @@ class Connector:
     ) -> NoReturn:
         try:
             cursor = self.conn.cursor()
-            cursor.execute('BEGIN')
             cursor.execute('INSERT INTO user2event (user_id, event_token) VALUES(?, ?)', (user_id, event_token))
             self.conn.commit()
         except sqlite3.Error as e:
@@ -99,7 +97,6 @@ class Connector:
     ) -> NoReturn:
         try:
             cursor = self.conn.cursor()
-            cursor.execute('BEGIN')
             cursor.execute('INSERT INTO users VALUES(?, ?)', (user.id, user.name))
             self.conn.commit()
         except sqlite3.Error as e:

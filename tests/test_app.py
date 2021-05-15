@@ -164,4 +164,39 @@ def test_circular_transactions(app):
 
 
 def test_event_isolation(app):
-    pass
+    for user in USERS:
+        app.add_new_user(user)
+
+    for i in range(2):
+        app.create_event(event_name=EVENTS[i].name, event_token=EVENTS[i].token, user_id=USERS[0].id)
+
+    expense_id = app.add_expense(Expense(
+        name='expense',
+        sum=100 * len(USERS),
+        lender_id=USERS[0].id,
+        event_token=EVENTS[0].token,
+    ))
+    for user in USERS[1:]:
+        app.add_debt(Debt(
+            expense_id=expense_id,
+            lender_id=USERS[0].id,
+            debtor_id=user.id,
+            sum=100,
+        ))
+
+    lenders_info, debtors_info = app.get_final_transactions(EVENTS[1].token)
+    assert lenders_info == dict()
+    assert debtors_info == dict()
+
+
+def test_several_executes_rollback(app):
+    """
+    Test that if first sqlite3.Cursor.execute method
+    with INSERT statement runs successfully and second method fails
+    then no data will be stored in database.
+    Testing Connector.create_event method
+    """
+    with pytest.raises(sqlite3.IntegrityError, match='FOREIGN KEY constraint failed'):
+        app.create_event(event_name=EVENTS[0].name, user_id=USERS[0].id)  # no such user in database
+
+    assert app.get_all_events() == []
