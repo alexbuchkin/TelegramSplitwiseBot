@@ -19,6 +19,10 @@ from database.new_types import (
     Debt,
 )
 
+from database.new_types import (
+    User,
+)
+
 _CURRENT_EVENT_TOKEN = 'CURRENT_EVENT_TOKEN'
 _EXPENSE = 'EXPENSE'
 _DEBT = 'DEBT'
@@ -37,6 +41,52 @@ _DEBT_SUM = 11
 _END = ConversationHandler.END
 
 
+class BeginningHandlers:
+    def __init__(self):
+        self._splitwise = SplitwiseApp()
+
+    def start_handler(
+        self,
+        update: Update,
+        _: CallbackContext,
+    ) -> NoReturn:
+        id_ = update.effective_user.id
+        name = update.effective_user.username
+
+        if self._splitwise.user_exists(id_):
+            name = self._splitwise.get_user_info(id_).name
+            update.effective_chat.send_message(f'Привет, {name}! Ты уже был(а) здесь!',
+                                               reply_markup=buttons.get_menu_keyboard())
+        else:
+            self._splitwise.add_new_user(User(id_, name))
+            update.effective_chat.send_message(f'Привет, {name}! Ты здесь впервые!',
+                                               reply_markup=buttons.get_menu_keyboard())
+
+    def users_of_event_handler(
+        self,
+        update: Update,
+        context: CallbackContext,
+    ):
+        token = context.args[0]
+        users = self._splitwise.get_users_of_event(token)
+        update.effective_chat.send_message(str(users))
+
+    def text_handler(
+        self,
+        update: Update,
+        _: CallbackContext,
+    ):
+        update.effective_chat.send_message('Введи команду или выберете пункт меню:')
+        update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
+
+    def get_menu(
+        self,
+        update: Update,
+        _: CallbackContext,
+    ):
+        update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
+
+
 class MenuButtonsConversationHandler:
     def __init__(self):
         self._splitwise = SplitwiseApp()
@@ -49,11 +99,22 @@ class MenuButtonsConversationHandler:
         data = update.callback_query.data
         update.callback_query.answer()
         if data == constants.CREATE_EVENT:
-            return self.create_event(update, _)
+            update.callback_query.edit_message_text('Введи название мероприятия или нажмите кнопку \'Отмена\'')
+            update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_cancel_button())
+            update.callback_query.answer()
+            return _EVENT_NAME_STATE
         elif data == constants.JOIN_EVENT:
-            return self.join_event(update, _)
+            update.callback_query.edit_message_text('Введи токен мероприятия или нажмите кнопку \'Отмена\'',
+                                                    reply_markup=buttons.get_cancel_button())
+            update.callback_query.answer()
+            return _EVENT_TOKEN_STATE
         elif data == constants.SELECT_EVENT:
-            return self.select_event(update, _)
+            user_id = update.effective_user.id
+            events = self._splitwise.get_user_events(user_id)
+            update.callback_query.edit_message_text('Выбери мероприятие')
+            update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_event_buttons(events))
+            update.callback_query.answer()
+            return _ASKING_FOR_ACTION
 
     def create_event(
         self,
@@ -125,6 +186,7 @@ class CreateEventConversation:
             f'Мероприятие "{event_name}" создано. Токен: `{event_token}`',
             parse_mode=ParseMode.MARKDOWN
         )
+        update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
         return _END
 
     def callback_handler(
@@ -132,7 +194,7 @@ class CreateEventConversation:
         update: Update,
         _: CallbackContext,
     ):
-        if update.callback_query.data == 'Отмена':
+        if update.callback_query.data == constants.CANCEL:
             update.callback_query.answer('Создание мероприятия отменено')
             update.callback_query.message.delete()
             return _END
@@ -151,9 +213,12 @@ class CreateEventConversation:
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
             entry_points=[MessageHandler(Filters.text, self.event_name_handler),
-                          CallbackQueryHandler(self.callback_handler),],
+                          CallbackQueryHandler(self.callback_handler), ],
             states={},
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler)],
+            map_to_parent={
+                _END: _END,
+            }
         )
         return conv_handler
 
@@ -173,13 +238,16 @@ class JoinEventConversation:
         try:
             self._splitwise.get_event_info(event_token)
         except KeyError:
-            update.effective_chat.send_message('Мероприятия с таким токеном не существует.')
-            return _END
+            update.effective_chat.send_message('Мероприятия с таким токеном не существует. Введите корректный токен')
+            update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
+            return None
         if self._splitwise.user_participates_in_event(user_id, event_token):
             update.effective_chat.send_message('Не прокатит! Ты уже зарегистрирован в этом мероприятии')
+            update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
             return _END
         self._splitwise.add_user_to_event(user_id, event_token)
         update.effective_chat.send_message('Ты успешно присоединился к мероприятию')
+        update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
         return _END
 
     def callback_handler(
@@ -187,12 +255,12 @@ class JoinEventConversation:
         update: Update,
         _: CallbackContext,
     ):
-        if update.callback_query.data == 'Отмена':
-            update.callback_query.answer('Отменено')
-            update.callback_query.message.delete()
+        if update.callback_query.data == constants.CANCEL:
+            update.callback_query.edit_message_text('Меню:')
+            update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
             return _END
         else:
-            update.callback_query.answer('Не на ту кнопку жмешь')
+            update.callback_query.answer('Не на ту кнопку жмешь',)
             return None
 
     def fallbacks_handler(
@@ -206,9 +274,12 @@ class JoinEventConversation:
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
             entry_points=[MessageHandler(Filters.text, self.event_token_handler),
-                          CallbackQueryHandler(self.callback_handler),],
+                          CallbackQueryHandler(self.callback_handler), ],
             states={},
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler)],
+            map_to_parent={
+                _END: _END,
+            }
         )
         return conv_handler
 
@@ -222,9 +293,14 @@ class SelectEventConversation:
             self,
             update: Update,
             context: CallbackContext,):
+        if update.callback_query.data == constants.CANCEL:
+            update.callback_query.edit_message_text('Меню:')
+            update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
+            update.callback_query.answer()
+            return _END
         event_token = update.callback_query.data
         context.user_data[_CURRENT_EVENT_TOKEN] = event_token
-        update.effective_chat.send_message('Введите команду')
+        update.effective_chat.send_message('Введите команду или выберете пункт меню:')
         update.callback_query.answer()
         return _EVENT_ACTIONS
 
@@ -244,6 +320,9 @@ class SelectEventConversation:
                                  AddExpenseHandlers().get_conversation_handler()]
             },
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler), ],
+            map_to_parent={
+                _END: _END,
+            }
         )
         return conv_handler
 
