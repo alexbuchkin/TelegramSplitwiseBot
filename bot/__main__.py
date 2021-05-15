@@ -1,6 +1,6 @@
 import os
 
-from bot.bot import TelegramBot
+from bot import TelegramBot
 
 
 if __name__ == '__main__':

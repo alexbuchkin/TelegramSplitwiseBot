@@ -2,7 +2,7 @@ import pytest
 import sqlite3
 
 from app.splitwise import SplitwiseApp
-from database.types import (
+from database.new_types import (
     User,
     Event,
     Expense,

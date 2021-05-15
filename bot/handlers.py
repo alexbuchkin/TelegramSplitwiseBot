@@ -1,4 +1,4 @@
-from typing import NoReturn
+from typing import NoReturn, Optional
 
 from telegram import ParseMode
 from telegram import Update
@@ -359,7 +359,7 @@ class ActionProcessHandlers:
                 update.effective_chat.send_message(
                     'Мероприятия с таким токеном не существует. Повторите создание траты:')
                 return _END
-            expense = Expense(None, None, None, None, None, None)
+            expense = Expense()
             expense.event_token = event_token
             expense.lender_id = user_id
             context.user_data[_EXPENSE] = expense
@@ -401,7 +401,7 @@ class ActionProcessHandlers:
         except KeyError:
             update.effective_chat.send_message('Мероприятия с таким токеном не существует. Повторите создание траты.')
             return _END
-        expense = Expense(None, None, None, None, None, None)
+        expense = Expense()
         expense.event_token = event_token
         expense.lender_id = user_id
         context.user_data[_EXPENSE] = expense
@@ -452,7 +452,7 @@ class AddExpenseHandlers:
         self,
         update: Update,
         context: CallbackContext,
-    ) -> int:
+    ) -> Optional[int]:
         # let's use integer division and forget about cents for some time
         expense_sum = update.effective_message.text
         try:
@@ -473,20 +473,20 @@ class AddExpenseHandlers:
         return _DEBTOR_NAME
 
     def debtor_name(
-            self,
-            update: Update,
-            context: CallbackContext
+        self,
+        update: Update,
+        context: CallbackContext
     ):
         if update.callback_query.data == constants.CANCEL:
             del context.user_data[_EXPENSE]
-            del context.user_data[_DEBT]
+            del context.user_data[_DEBT]  # TODO: check if no debts exist, might be KeyError
             del context.user_data[_CURRENT_EVENT_TOKEN]
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
             update.callback_query.answer()
             return _END
 
-        user_debt = Debt(None, None, None, None)
+        user_debt = Debt()
         user_debt.lender_id = update.effective_user.id
         user_debt.debtor_id = update.callback_query.data
         context.user_data[_DEBT] = user_debt
