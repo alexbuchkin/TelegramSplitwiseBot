@@ -11,8 +11,7 @@ from telegram.ext import (
 from typing import NoReturn
 
 from app.splitwise import SplitwiseApp
-
-import buttons
+from bot import buttons
 
 
 class TelegramBot:
