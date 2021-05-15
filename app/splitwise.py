@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import NoReturn, List, Dict, Tuple
 
 from database.connector import Connector
-from database.types import (
+from database.new_types import (
     User,
     Event,
     Expense,
@@ -136,7 +136,7 @@ class SplitwiseApp:
 
         event_debts = self.conn.get_debts_by_expenses([expense.id for expense in event_expenses])
         for debt in event_debts:
-            users_balance[debt.debtor_id] += debt.sum
+            users_balance[debt.debtor_id]['owed'] += debt.sum
         lenders = [
             (user_balance['lent'] - user_balance['owed'], user_id)
             for user_id, user_balance in users_balance.items()
@@ -179,3 +179,11 @@ class SplitwiseApp:
         if lenders_deque or debtors_deque:
             raise RuntimeError('Something went wrong while calculating final transactions')
         return dict(lenders_info), dict(debtors_info)
+
+    def get_user_events(
+            self,
+            user_id: int,
+    ) -> List[Event]:
+        return self.conn.get_user_events(user_id)
+
+

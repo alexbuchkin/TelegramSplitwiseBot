@@ -3,7 +3,7 @@ from typing import NoReturn, Optional, List
 
 import sqlite3
 
-from database.types import (
+from database.new_types import (
     User,
     Event,
     Expense,
@@ -85,7 +85,7 @@ class Connector:
         event_token: str,
     ) -> Event:
         cursor = self.conn.cursor()
-        event = cursor.execute('SELECT * FROM events WHERE id = ?', (event_token,)).fetchone()
+        event = cursor.execute('SELECT * FROM events WHERE token = ?', (event_token,)).fetchone()
         if not event:
             raise KeyError(f'Event with token {event_token} does not exist')
         return Event(*event)
@@ -185,6 +185,17 @@ class Connector:
             seq=','.join('?' * len(expense_ids))
         )
         return [Debt(*item) for item in cursor.execute(sql_query, expense_ids).fetchall()]
+
+    def get_user_events(
+            self,
+            user_id: int
+    ) -> List[Event]:
+        cursor = self.conn.cursor()
+        events = cursor.execute(
+            'SELECT e.token, e.name '
+            'FROM events e, user2event ev '
+            'WHERE ev.user_id = ? AND ev.event_token = e.token', (user_id,))
+        return [Event(*item) for item in events.fetchall()]
 
     def __del__(self):
         """
