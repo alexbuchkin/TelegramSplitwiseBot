@@ -337,9 +337,19 @@ class ActionProcessHandlers:
         context: CallbackContext,
     ) -> NoReturn:
         data = update.callback_query.data
-        update.callback_query.answer()
         if data == constants.SHOW_DEBTS:
-            return self.show_debts(update, context)
+            token = context.user_data[_CURRENT_EVENT_TOKEN]
+            user_id = update.effective_user.id
+            lenders_info, debtors_info = self._splitwise.get_final_transactions(token)
+            if user_id in debtors_info:
+                update.callback_query.edit_message_text('Вы должны: \n' + str(debtors_info[user_id]))
+            elif user_id in lenders_info:
+                update.callback_query.edit_message_text('Вам должны: \n' + str(lenders_info[user_id]))
+            else:
+                update.callback_query.edit_message_text('Вы никому не должны и вам никто не должен')
+            update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
+            update.callback_query.answer()
+            return _END
         elif data == constants.ADD_EXPENSE:
             event_token = context.user_data[_CURRENT_EVENT_TOKEN]
             user_id = update.effective_user.id
@@ -376,6 +386,7 @@ class ActionProcessHandlers:
             update.effective_chat.send_message('Вам должны: \n' + str(lenders_info[user_id]))
         else:
             update.effective_chat.send_message('Вы никому не должны и вам никто не должен')
+        update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
         return _END
 
     def add_expense(
