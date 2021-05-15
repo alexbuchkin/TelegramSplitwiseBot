@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import NoReturn, List, Dict, Tuple
 
 from database.connector import Connector
-from database.types import (
+from database.new_types import (
     User,
     Event,
     Expense,
@@ -186,6 +186,12 @@ class SplitwiseApp:
         if lenders_deque or debtors_deque:
             raise RuntimeError('Something went wrong while calculating final transactions')
         return dict(lenders_info), dict(debtors_info)
+
+    def get_user_events(
+        self,
+        user_id: int,
+    ) -> List[Event]:
+        return self.conn.get_user_events(user_id)
 
     # following methods are for testing purposes only
     # please do not use them in production
