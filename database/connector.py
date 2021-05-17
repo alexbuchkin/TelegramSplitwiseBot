@@ -1,24 +1,30 @@
-from typing import NoReturn, Optional
+from pathlib import Path
+from typing import NoReturn, Optional, List, Tuple
+
 import sqlite3
 
-from datetime import datetime
+from database.types import (
+    User,
+    Event,
+    Expense,
+    Debt,
+)
+
 
 class Connector:
-    TABLES = [
-        'debts',
-        'user2event',
-        'expenses',
-        'users',
-        'events',
-    ]
-
-    def __init__(self):
+    def __init__(
+        self,
+        db_name: str = 'database.sqlite',
+    ):
         """
         Establishes connection to database etc.
         """
-        self.conn = sqlite3.connect('database.sqlite', check_same_thread=False)
+        self.conn = sqlite3.connect(
+            db_name,
+            check_same_thread=False,
+            isolation_level='EXCLUSIVE',
+        )
         self._create_database()
-        self.conn.commit()
 
     def _create_database(self) -> NoReturn:
         """
@@ -26,182 +32,208 @@ class Connector:
         Maybe we need to manually apply the migration mechanism instead of this method
         """
         cursor = self.conn.cursor()
-        cursor.execute('PRAGMA foreign_keys=on;')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id   INTEGER PRIMARY KEY,
-                name VARCHAR
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS events (
-                id    VARCHAR PRIMARY KEY,
-                name  VARCHAR NOT NULL UNIQUE
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS user2event (
-                user_id INTEGER NOT NULL,
-                event_id INTEGER NOT NULL,
-                
-                FOREIGN KEY (user_id)  REFERENCES users(id),
-                FOREIGN KEY (event_id) REFERENCES events(id)
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS expenses (
-                id        INTEGER PRIMARY KEY,
-                name      VARCHAR NOT NULL,
-                lender_id INTEGER NOT NULL,
-                event_id  INTEGER NOT NULL,
-                sum       INTEGER NOT NULL,
-                datetime  DATETIME NOT NULL,
-
-                FOREIGN KEY (lender_id) REFERENCES users(id),
-                FOREIGN KEY (event_id)  REFERENCES events(id)
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS debts (
-                expense_id INTEGER NOT NULL,
-                lender_id  INTEGER NOT NULL,
-                debtor_id  INTEGER NOT NULL,
-                sum        FLOAT NOT NULL,
-
-                FOREIGN KEY (expense_id) REFERENCES expenses(id),
-                FOREIGN KEY (lender_id)  REFERENCES users(id),
-                FOREIGN KEY (debtor_id)  REFERENCES users(id)
-            )
-        ''')
+        current_dir = Path(__file__).resolve().parent
+        try:
+            with open(current_dir.joinpath('sql/create_tables.sql'), 'r') as file:
+                cursor.executescript(file.read())
+            self.conn.commit()
+        except sqlite3.Error as e:
+            self.conn.rollback()
+            raise e
 
     def create_event(
         self,
-        event_name: str,
-        event_token: str,
+        event: Event,
         user_id: int,
     ) -> NoReturn:
+        """
+        User with user_id creates an event and joins it
+        Event token must be provided, it has to be unique
+        """
         try:
             cursor = self.conn.cursor()
-            cursor.execute('INSERT INTO events (id, name) VALUES(?, ?);', (event_token, event_name))
-            cursor.execute('INSERT INTO user2event (user_id, event_id) VALUES(?, ?);', (user_id, event_token))
+            cursor.execute('INSERT INTO events (token, name) VALUES(?, ?)', (event.token, event.name))
+            cursor.execute('INSERT INTO user2event (user_id, event_token) VALUES(?, ?)', (user_id, event.token))
             self.conn.commit()
-        except sqlite3.Error:
+        except sqlite3.Error as e:
             self.conn.rollback()
-            raise
+            raise e
 
     def add_user_to_event(
         self,
         user_id: int,
-        event_id: str
+        event_token: str,
     ) -> NoReturn:
         try:
             cursor = self.conn.cursor()
-            cursor.execute('INSERT INTO user2event (user_id, event_id) VALUES(?, ?);', (user_id, event_id))
+            cursor.execute('INSERT INTO user2event (user_id, event_token) VALUES(?, ?)', (user_id, event_token))
             self.conn.commit()
-        except sqlite3.Error:
+        except sqlite3.Error as e:
             self.conn.rollback()
-            raise
+            raise e
 
-    def get_user_event(
+    def user_participates_in_event(
         self,
         user_id: int,
-        event_id: str
-    ) -> list:
+        event_token: str,
+    ) -> bool:
         cursor = self.conn.cursor()
-        cursor.execute('SELECT * FROM user2event WHERE user_id = ? AND event_id = ?;', (user_id, event_id))
-        return cursor.fetchone()
+        cursor.execute('SELECT * FROM user2event WHERE user_id = ? AND event_token = ?', (user_id, event_token))
+        return bool(cursor.fetchone())
 
     def get_event_info(
         self,
-        event_id: str
-    ) -> dict:
+        event_token: str,
+    ) -> Event:
         cursor = self.conn.cursor()
-        event = cursor.execute("SELECT * FROM events WHERE id = ?;", (event_id,))
-        return event.fetchone()
+        event = cursor.execute('SELECT * FROM events WHERE token = ?', (event_token,)).fetchone()
+        if not event:
+            raise KeyError(f'Event with token {event_token} does not exist')
+        return Event(token=event[0], name=event[1])
 
     def save_user_info(
         self,
-        user_id: int,
-        user_name: str,
+        user: User,
     ) -> NoReturn:
-        cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO users VALUES(?, ?);", (user_id, user_name))
-        self.conn.commit()
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('INSERT INTO users VALUES(?, ?)', (user.id, user.name))
+            self.conn.commit()
+        except sqlite3.Error as e:
+            self.conn.rollback()
+            raise e
 
     def get_user_info_or_none(
         self,
-        user_id: int
-    ) -> Optional[dict]:
+        user_id: int,
+    ) -> Optional[User]:
         cursor = self.conn.cursor()
-        user = cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,)).fetchone()
-        return None if user is None else {
-            'id': user[0],
-            'name': user[1],
-        }
+        user = cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        return None if user is None else User(id=user[0], name=user[1])
 
     def get_users_of_event(
-            self,
-            token: str) -> list:
+        self,
+        event_token: str,
+    ) -> List[User]:
         cursor = self.conn.cursor()
-        users = cursor.execute("SELECT * "
-                               "FROM users u, user2event u2e "
-                               "WHERE u.id = u2e.user_id AND u2e.event_id = ?;",
-                               (token,)).fetchall()
-        return None if users is None else users
+        users = cursor.execute(
+            'SELECT * '
+            'FROM users u, user2event u2e '
+            'WHERE u.id = u2e.user_id AND u2e.event_token = ?',
+            (event_token,)
+        ).fetchall()
+        return [User(id=user[0], name=user[1]) for user in (users or [])]
 
     def save_debt_info(
         self,
-        expense_id: int,
-        lender_id: int,
-        debtor_id: int,
-        sum_: float,
+        debt: Debt,
     ) -> int:
-        cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO debts (expense_id, lender_id, debtor_id, sum) VALUES(?, ?, ?, ?);", (expense_id, lender_id, debtor_id, sum_))
-        self.conn.commit()
-        return cursor.lastrowid
-
-    def get_debts_of_expenses(
-        self,
-        expenses_id: list
-    ) -> list:
-        cursor = self.conn.cursor()
-        sql = "SELECT debtor_id, sum FROM debts WHERE expense_id in ({seq});".format(seq=','.join(['?'] * len(expenses_id)))
-        debts = cursor.execute(sql, expenses_id)
-        return debts.fetchall()
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'INSERT INTO debts (expense_id, lender_id, debtor_id, sum) VALUES(?, ?, ?, ?)',
+                (debt.expense_id, debt.lender_id, debt.debtor_id, debt.sum),
+            )
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            self.conn.rollback()
+            raise e
 
     def save_expense_info(
         self,
-        name: str,
-        lender_id: int,
-        event_id: str,
-        sum_: float,
-        datetime_: datetime
+        expense: Expense,
     ) -> int:
-        cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO expenses (name, lender_id, event_id, sum, datetime) VALUES(?, ?, ?, ?, ?);",
-                       (name, lender_id, event_id, sum_, datetime_))
-        self.conn.commit()
-        return cursor.lastrowid
+        """
+        Add new expense to database
+        expense.id will be ignored
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'INSERT INTO expenses (name, sum, lender_id, event_token, datetime) VALUES(?, ?, ?, ?, ?)',
+                (expense.name, expense.sum, expense.lender_id, expense.event_token, expense.datetime),
+            )
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            self.conn.rollback()
+            raise e
 
     def get_expense_info(
         self,
-        expense_id: int
-    ) -> dict:
+        expense_id: int,
+    ) -> Expense:
         cursor = self.conn.cursor()
-        expense = cursor.execute("SELECT * FROM expenses WHERE id = ?;", (expense_id,))
-        return expense.fetchone()
+        expense = cursor.execute('SELECT * FROM expenses WHERE id = ?', (expense_id,)).fetchone()
+        return Expense(
+            id=expense[0],
+            name=expense[1],
+            sum=expense[2],
+            lender_id=expense[3],
+            event_token=expense[4],
+            datetime=expense[5],
+        )
 
     def get_event_expenses(
         self,
-        token: str
-    ) -> list:
+        event_token: str,
+    ) -> List[Expense]:
         cursor = self.conn.cursor()
-        expense = cursor.execute("SELECT id, lender_id, sum FROM expenses WHERE event_id = ?;", (token,))
-        return expense.fetchall()
+        expenses = cursor.execute('SELECT * FROM expenses WHERE event_token = ?', (event_token,))
+        return [Expense(
+            id=item[0],
+            name=item[1],
+            sum=item[2],
+            lender_id=item[3],
+            event_token=item[4],
+            datetime=item[5],
+        ) for item in expenses.fetchall()]
+
+    def get_debts_by_expenses(
+        self,
+        expense_ids: List[int],
+    ) -> List[Debt]:
+        cursor = self.conn.cursor()
+        sql_query = 'SELECT * FROM debts WHERE expense_id in ({seq})'.format(
+            seq=','.join('?' * len(expense_ids))
+        )
+        return [Debt(
+            expense_id=item[0],
+            lender_id=item[1],
+            debtor_id=item[2],
+            sum=item[3],
+        ) for item in cursor.execute(sql_query, expense_ids).fetchall()]
+
+    def get_user_events(
+            self,
+            user_id: int
+    ) -> List[Event]:
+        cursor = self.conn.cursor()
+        events = cursor.execute(
+            'SELECT e.token, e.name '
+            'FROM events e, user2event ev '
+            'WHERE ev.user_id = ? AND ev.event_token = e.token', (user_id,))
+        return [Event(*item) for item in events.fetchall()]
 
     def __del__(self):
         """
         Closes connection etc.
         """
         self.conn.close()
+
+    # following methods are for testing purposes only
+    # please do not use them in production
+    def get_all_users(self) -> List[User]:
+        cursor = self.conn.cursor()
+        result = cursor.execute('SELECT * FROM users').fetchall()
+        return [User(id=item[0], name=item[1]) for item in result]
+
+    def get_all_events(self) -> List[Event]:
+        cursor = self.conn.cursor()
+        result = cursor.execute('SELECT * FROM events').fetchall()
+        return [Event(token=item[0], name=item[1]) for item in result]
+
+    def get_all_user2event(self) -> List[Tuple[int, str]]:
+        cursor = self.conn.cursor()
+        return cursor.execute('SELECT * FROM user2event').fetchall()

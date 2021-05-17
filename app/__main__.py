@@ -1,8 +1,9 @@
 from app.splitwise import SplitwiseApp
+from database.types import User
 
 
 if __name__ == '__main__':
-    splitwise = SplitwiseApp()
+    splitwise = SplitwiseApp(db_name='testdb.sqlite')
     users = [
         (123, 'Ivan'),
         (456, 'Maria'),
@@ -10,9 +11,7 @@ if __name__ == '__main__':
     ]
 
     for id_, name in users:
-        splitwise.add_new_user(id_, name)
+        splitwise.add_new_user(User(id=id_, name=name))
 
     for id_, _ in users:
         print(splitwise.get_user_info(id_))
-
-    splitwise.conn.clean_all_tables()
