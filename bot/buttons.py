@@ -14,7 +14,7 @@ def get_user_buttons(users: List[User]) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(user.name, callback_data=str(user.id))]
         for user in users
     ]
-    keyboard.append([InlineKeyboardButton("Закончить", callback_data=menu_items.CANCEL)])
+    keyboard.append([InlineKeyboardButton('Закончить', callback_data=menu_items.CANCEL)])
     return InlineKeyboardMarkup(keyboard)
 
 
