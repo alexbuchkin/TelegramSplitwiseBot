@@ -11,15 +11,11 @@ from telegram.ext import (
     ConversationHandler,
 )
 
-import buttons
-import constants
+from bot import buttons, constants
 from app.splitwise import SplitwiseApp
-from database.new_types import (
+from database.types import (
     Expense,
     Debt,
-)
-
-from database.new_types import (
     User,
 )
 
@@ -488,7 +484,7 @@ class AddExpenseHandlers:
 
         user_debt = Debt()
         user_debt.lender_id = update.effective_user.id
-        user_debt.debtor_id = update.callback_query.data
+        user_debt.debtor_id = int(update.callback_query.data)
         context.user_data[_DEBT] = user_debt
         update.callback_query.edit_message_text('Сколько он тебе задолжал?')
         update.callback_query.answer()

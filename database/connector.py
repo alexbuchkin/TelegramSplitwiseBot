@@ -3,7 +3,7 @@ from typing import NoReturn, Optional, List, Tuple
 
 import sqlite3
 
-from database.new_types import (
+from database.types import (
     User,
     Event,
     Expense,

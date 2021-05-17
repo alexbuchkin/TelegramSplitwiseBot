@@ -2,7 +2,7 @@ from database.connector import Connector
 
 
 if __name__ == '__main__':
-    connector = Connector()
+    connector = Connector(db_name='testdb.sqlite')
     # connector.drop_all_tables()
     # connector.clean_all_tables()
     # event_id1 = connector.save_event_info("sochi")
