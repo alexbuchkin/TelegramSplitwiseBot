@@ -135,11 +135,9 @@ class SplitwiseApp:
         })
 
         event_expenses = self.conn.get_event_expenses(event_token)
-        for expense in event_expenses:
-            users_balance[expense.lender_id]['lent'] += expense.sum
-
         event_debts = self.conn.get_debts_by_expenses([expense.id for expense in event_expenses])
         for debt in event_debts:
+            users_balance[debt.lender_id]['lent'] += debt.sum
             users_balance[debt.debtor_id]['owed'] += debt.sum
         lenders = [
             (user_balance['lent'] - user_balance['owed'], user_id)
