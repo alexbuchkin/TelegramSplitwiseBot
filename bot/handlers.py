@@ -1,3 +1,4 @@
+from enum import auto, Enum, unique
 from typing import NoReturn, Optional
 
 from telegram import ParseMode
@@ -19,19 +20,20 @@ from database.types import (
     User,
 )
 
-_CURRENT_EVENT_TOKEN = 'CURRENT_EVENT_TOKEN'
-_EXPENSE = 'EXPENSE'
-_DEBT = 'DEBT'
 
-_EVENT_NAME_STATE = 4
-_EVENT_TOKEN_STATE = 5
-_ASKING_FOR_ACTION = 6
-_EVENT_ACTIONS = 7
-_EXPENSE_NAME = 8
-_EXPENSE_SUM = 9
-_DEBTOR_NAME = 10
-_DEBT_SUM = 11
-_END = ConversationHandler.END
+@unique
+class States(Enum):
+    CURRENT_EVENT_TOKEN = auto()
+    EXPENSE = auto()
+    DEBT = auto()
+    EVENT_NAME_STATE = auto()
+    EVENT_TOKEN_STATE = auto()
+    ASKING_FOR_ACTION = auto()
+    EVENT_ACTIONS = auto()
+    EXPENSE_NAME = auto()
+    EXPENSE_SUM = auto()
+    DEBTOR_NAME = auto()
+    DEBT_SUM = auto()
 
 
 class BeginningHandlers:
@@ -95,28 +97,28 @@ class MenuButtonsConversationHandler:
             update.callback_query.edit_message_text('Введи название мероприятия или нажмите кнопку \'Отмена\'')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_cancel_button())
             update.callback_query.answer()
-            return _EVENT_NAME_STATE
+            return States.EVENT_NAME_STATE
         elif data == menu_items.JOIN_EVENT:
             update.callback_query.edit_message_text('Введи токен мероприятия или нажмите кнопку \'Отмена\'',
                                                     reply_markup=buttons.get_cancel_button())
             update.callback_query.answer()
-            return _EVENT_TOKEN_STATE
+            return States.EVENT_TOKEN_STATE
         elif data == menu_items.SELECT_EVENT:
             user_id = update.effective_user.id
             events = self._splitwise.get_user_events(user_id)
             update.callback_query.edit_message_text('Выбери мероприятие')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_event_buttons(events))
             update.callback_query.answer()
-            return _ASKING_FOR_ACTION
+            return States.ASKING_FOR_ACTION
 
     def create_event(
         self,
         update: Update,
         _: CallbackContext,
-    ) -> int:
+    ) -> States:
         update.effective_chat.send_message('Введи название мероприятия или нажмите кнопку \'Отмена\'',
                                            reply_markup=buttons.get_cancel_button())
-        return _EVENT_NAME_STATE
+        return States.EVENT_NAME_STATE
 
     def join_event(
         self,
@@ -125,7 +127,7 @@ class MenuButtonsConversationHandler:
     ):
         update.effective_chat.send_message('Введи токен мероприятия или нажмите кнопку \'Отмена\'',
                                            reply_markup=buttons.get_cancel_button())
-        return _EVENT_TOKEN_STATE
+        return States.EVENT_TOKEN_STATE
 
     def select_event(
         self,
@@ -135,7 +137,7 @@ class MenuButtonsConversationHandler:
         user_id = update.effective_user.id
         events = self._splitwise.get_user_events(user_id)
         update.effective_chat.send_message('Выбери мероприятие', reply_markup=buttons.get_event_buttons(events))
-        return _ASKING_FOR_ACTION
+        return States.ASKING_FOR_ACTION
 
     def fallback_handler(
         self,
@@ -151,9 +153,9 @@ class MenuButtonsConversationHandler:
                           CommandHandler('join_event', self.join_event),
                           CommandHandler('select_event', self.select_event)],
             states={
-                _EVENT_NAME_STATE: [CreateEventConversation().get_conversation_handler()],
-                _ASKING_FOR_ACTION: [SelectEventConversation().get_conversation_handler()],
-                _EVENT_TOKEN_STATE: [JoinEventConversation().get_conversation_handler()],
+                States.EVENT_NAME_STATE: [CreateEventConversation().get_conversation_handler()],
+                States.ASKING_FOR_ACTION: [SelectEventConversation().get_conversation_handler()],
+                States.EVENT_TOKEN_STATE: [JoinEventConversation().get_conversation_handler()],
             },
             fallbacks=[MessageHandler(Filters.all, self.fallback_handler)],
         )
@@ -180,7 +182,7 @@ class CreateEventConversation:
             parse_mode=ParseMode.MARKDOWN
         )
         update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
-        return _END
+        return ConversationHandler.END
 
     def callback_handler(
         self,
@@ -191,7 +193,7 @@ class CreateEventConversation:
             update.callback_query.answer('Создание мероприятия отменено')
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
-            return _END
+            return ConversationHandler.END
         else:
             update.callback_query.answer('Не на ту кнопку жмешь')
             return None
@@ -211,7 +213,7 @@ class CreateEventConversation:
             states={},
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler)],
             map_to_parent={
-                _END: _END,
+                ConversationHandler.END: ConversationHandler.END,
             }
         )
         return conv_handler
@@ -239,11 +241,11 @@ class JoinEventConversation:
         if self._splitwise.user_participates_in_event(user_id, event_token):
             update.effective_chat.send_message('Не прокатит! Ты уже зарегистрирован в этом мероприятии')
             update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
-            return _END
+            return ConversationHandler.END
         self._splitwise.add_user_to_event(user_id, event_token)
         update.effective_chat.send_message('Ты успешно присоединился к мероприятию')
         update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
-        return _END
+        return ConversationHandler.END
 
     def callback_handler(
         self,
@@ -253,7 +255,7 @@ class JoinEventConversation:
         if update.callback_query.data == menu_items.CANCEL:
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
-            return _END
+            return ConversationHandler.END
         else:
             update.callback_query.answer('Не на ту кнопку жмешь',)
             return None
@@ -273,7 +275,7 @@ class JoinEventConversation:
             states={},
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler)],
             map_to_parent={
-                _END: _END,
+                ConversationHandler.END: ConversationHandler.END,
             }
         )
         return conv_handler
@@ -282,28 +284,29 @@ class JoinEventConversation:
 class SelectEventConversation:
 
     def __init__(self,):
-        self._splitwise  = SplitwiseApp()
+        self._splitwise = SplitwiseApp()
 
     def asking_for_action(
-            self,
-            update: Update,
-            context: CallbackContext,):
+        self,
+        update: Update,
+        context: CallbackContext,
+    ):
         if update.callback_query.data == menu_items.CANCEL:
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
             update.callback_query.answer()
-            return _END
+            return ConversationHandler.END
         event_token = update.callback_query.data
-        context.user_data[_CURRENT_EVENT_TOKEN] = event_token
+        context.user_data[States.CURRENT_EVENT_TOKEN] = event_token
         update.callback_query.edit_message_text('Введите команду или выберете пункт меню:')
         update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_event_commands_keyboard())
         update.callback_query.answer()
-        return _EVENT_ACTIONS
+        return States.EVENT_ACTIONS
 
     def fallbacks_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Что-то пошло не так. Попробуй еще раз')
         return None
@@ -312,11 +315,11 @@ class SelectEventConversation:
         conv_handler = ConversationHandler(
             entry_points=[CallbackQueryHandler(self.asking_for_action)],
             states={
-                _EVENT_ACTIONS: [ActionProcessHandlers().get_conversation_handler(), ]
+                States.EVENT_ACTIONS: [ActionProcessHandlers().get_conversation_handler(), ]
             },
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler), ],
             map_to_parent={
-                _END: _END,
+                ConversationHandler.END: ConversationHandler.END,
             }
 
         )
@@ -334,7 +337,7 @@ class ActionProcessHandlers:
     ) -> NoReturn:
         data = update.callback_query.data
         if data == menu_items.SHOW_DEBTS:
-            token = context.user_data[_CURRENT_EVENT_TOKEN]
+            token = context.user_data[States.CURRENT_EVENT_TOKEN]
             user_id = update.effective_user.id
             lenders_info, debtors_info = self._splitwise.get_final_transactions(token)
             if user_id in debtors_info:
@@ -345,35 +348,35 @@ class ActionProcessHandlers:
                 update.callback_query.edit_message_text('Вы никому не должны и вам никто не должен')
             update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
             update.callback_query.answer()
-            return _END
+            return ConversationHandler.END
         elif data == menu_items.ADD_EXPENSE:
-            event_token = context.user_data[_CURRENT_EVENT_TOKEN]
+            event_token = context.user_data[States.CURRENT_EVENT_TOKEN]
             user_id = update.effective_user.id
             try:
                 self._splitwise.get_event_info(event_token)
             except KeyError:
                 update.effective_chat.send_message(
                     'Мероприятия с таким токеном не существует. Повторите создание траты:')
-                return _END
+                return ConversationHandler.END
             expense = Expense()
             expense.event_token = event_token
             expense.lender_id = user_id
-            context.user_data[_EXPENSE] = expense
+            context.user_data[States.EXPENSE] = expense
             update.callback_query.edit_message_text('Введи название траты.')
-            return _EXPENSE_NAME
+            return States.EXPENSE_NAME
         elif data == menu_items.CANCEL:
-            del context.user_data[_CURRENT_EVENT_TOKEN]
+            del context.user_data[States.CURRENT_EVENT_TOKEN]
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
             update.callback_query.answer()
-            return _END
+            return ConversationHandler.END
 
     def show_debts(
         self,
         update: Update,
         context: CallbackContext,
     ) -> int:
-        token = context.user_data[_CURRENT_EVENT_TOKEN]
+        token = context.user_data[States.CURRENT_EVENT_TOKEN]
         user_id = update.effective_user.id
         lenders_info, debtors_info = self._splitwise.get_final_transactions(token)
         if user_id in debtors_info:
@@ -383,31 +386,31 @@ class ActionProcessHandlers:
         else:
             update.effective_chat.send_message('Вы никому не должны и вам никто не должен')
         update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
-        return _END
+        return ConversationHandler.END
 
     def add_expense(
         self,
         update: Update,
         context: CallbackContext,
     ):
-        event_token = context.user_data[_CURRENT_EVENT_TOKEN]
+        event_token = context.user_data[States.CURRENT_EVENT_TOKEN]
         user_id = update.effective_user.id
         try:
             self._splitwise.get_event_info(event_token)
         except KeyError:
             update.effective_chat.send_message('Мероприятия с таким токеном не существует. Повторите создание траты.')
-            return _END
+            return ConversationHandler.END
         expense = Expense()
         expense.event_token = event_token
         expense.lender_id = user_id
-        context.user_data[_EXPENSE] = expense
+        context.user_data[States.EXPENSE] = expense
         update.effective_chat.send_message('Введи название траты.')
-        return _EXPENSE_NAME
+        return States.EXPENSE_NAME
 
     def fallbacks_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Что-то пошло не так. Попробуй еще раз раз')
         return None
@@ -418,11 +421,11 @@ class ActionProcessHandlers:
                           CommandHandler('show_debts', self.show_debts),
                           CommandHandler('add_expense', self.add_expense), ],
             states={
-                _EXPENSE_NAME: [AddExpenseHandlers().get_conversation_handler()],
+                States.EXPENSE_NAME: [AddExpenseHandlers().get_conversation_handler()],
             },
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler)],
             map_to_parent={
-                _END: _END
+                ConversationHandler.END: ConversationHandler.END
             }
 
         )
@@ -438,17 +441,17 @@ class AddExpenseHandlers:
         self,
         update: Update,
         context: CallbackContext,
-    ) -> int:
+    ) -> States:
         expense_name = update.effective_message.text
-        context.user_data[_EXPENSE].name = expense_name
+        context.user_data[States.EXPENSE].name = expense_name
         update.effective_chat.send_message('Введи потраченную сумму.')
-        return _EXPENSE_SUM
+        return States.EXPENSE_SUM
 
     def expense_sum(
         self,
         update: Update,
         context: CallbackContext,
-    ) -> Optional[int]:
+    ) -> Optional[States]:
         # let's use integer division and forget about cents for some time
         expense_sum = update.effective_message.text
         try:
@@ -458,15 +461,15 @@ class AddExpenseHandlers:
                                                'Попробуй еще раз')
             return None
 
-        context.user_data[_EXPENSE].sum = expense_sum
-        expense_id = self._splitwise.add_expense(context.user_data[_EXPENSE])
-        context.user_data[_EXPENSE].id = expense_id
+        context.user_data[States.EXPENSE].sum = expense_sum
+        expense_id = self._splitwise.add_expense(context.user_data[States.EXPENSE])
+        context.user_data[States.EXPENSE].id = expense_id
         expense = self._splitwise.get_expense(expense_id)
         update.effective_chat.send_message(f'Создана трата: {str(expense)}.')
         update.effective_chat.send_message('Приступим к записи долгов')
-        users = self._splitwise.get_users_of_event(context.user_data[_CURRENT_EVENT_TOKEN])
+        users = self._splitwise.get_users_of_event(context.user_data[States.CURRENT_EVENT_TOKEN])
         update.effective_chat.send_message('Назови имя должника', reply_markup=buttons.get_user_buttons(users))
-        return _DEBTOR_NAME
+        return States.DEBTOR_NAME
 
     def debtor_name(
         self,
@@ -474,21 +477,21 @@ class AddExpenseHandlers:
         context: CallbackContext
     ):
         if update.callback_query.data == menu_items.CANCEL:
-            del context.user_data[_EXPENSE]
-            del context.user_data[_DEBT]  # TODO: check if no debts exist, might be KeyError
-            del context.user_data[_CURRENT_EVENT_TOKEN]
+            del context.user_data[States.EXPENSE]
+            del context.user_data[States.DEBT]  # TODO: check if no debts exist, might be KeyError
+            del context.user_data[States.CURRENT_EVENT_TOKEN]
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
             update.callback_query.answer()
-            return _END
+            return ConversationHandler.END
 
         user_debt = Debt()
         user_debt.lender_id = update.effective_user.id
         user_debt.debtor_id = int(update.callback_query.data)
-        context.user_data[_DEBT] = user_debt
+        context.user_data[States.DEBT] = user_debt
         update.callback_query.edit_message_text('Сколько он тебе задолжал?')
         update.callback_query.answer()
-        return _DEBT_SUM
+        return States.DEBT_SUM
 
     def debt_sum(
         self,
@@ -503,29 +506,29 @@ class AddExpenseHandlers:
                                                'Попробуй еще раз')
             return None
 
-        context.user_data[_DEBT].sum = debt_sum
-        context.user_data[_DEBT].expense_id = context.user_data[_EXPENSE].id
-        debt = context.user_data[_DEBT]
+        context.user_data[States.DEBT].sum = debt_sum
+        context.user_data[States.DEBT].expense_id = context.user_data[States.EXPENSE].id
+        debt = context.user_data[States.DEBT]
         self._splitwise.add_debt(debt)
         update.effective_chat.send_message('Записал!')
-        users = self._splitwise.get_users_of_event(context.user_data[_EXPENSE].event_token)
+        users = self._splitwise.get_users_of_event(context.user_data[States.EXPENSE].event_token)
         update.effective_chat.send_message('Назови имя следующего должника или нажмите "Закончить"',
                                            reply_markup=buttons.get_user_buttons(users))
-        return _DEBTOR_NAME
+        return States.DEBTOR_NAME
 
 
     def fallbacks_button_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Хватит жмакать на кнопки')
         return None
 
     def fallbacks_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Что-то пошло не так. Попробуй еще раз раз раз')
         return None
@@ -534,14 +537,14 @@ class AddExpenseHandlers:
         conv_handler = ConversationHandler(
             entry_points=[MessageHandler(Filters.text, self.expense_name)],
             states={
-                _EXPENSE_SUM: [MessageHandler(Filters.text, self.expense_sum)],
-                _DEBTOR_NAME: [CallbackQueryHandler(self.debtor_name)],
-                _DEBT_SUM: [MessageHandler(Filters.text, self.debt_sum)],
+                States.EXPENSE_SUM: [MessageHandler(Filters.text, self.expense_sum)],
+                States.DEBTOR_NAME: [CallbackQueryHandler(self.debtor_name)],
+                States.DEBT_SUM: [MessageHandler(Filters.text, self.debt_sum)],
             },
             fallbacks=[CallbackQueryHandler(self.fallbacks_button_handler),
                        MessageHandler(Filters.all, self.fallbacks_handler)],
             map_to_parent={
-                _END: _END
+                ConversationHandler.END: ConversationHandler.END
             }
 
         )
