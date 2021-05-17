@@ -11,7 +11,7 @@ from telegram.ext import (
     ConversationHandler,
 )
 
-from bot import buttons, constants
+from bot import buttons, menu_items
 from app.splitwise import SplitwiseApp
 from database.types import (
     Expense,
@@ -91,17 +91,17 @@ class MenuButtonsConversationHandler:
     ) -> NoReturn:
         data = update.callback_query.data
         update.callback_query.answer()
-        if data == constants.CREATE_EVENT:
+        if data == menu_items.CREATE_EVENT:
             update.callback_query.edit_message_text('Введи название мероприятия или нажмите кнопку \'Отмена\'')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_cancel_button())
             update.callback_query.answer()
             return _EVENT_NAME_STATE
-        elif data == constants.JOIN_EVENT:
+        elif data == menu_items.JOIN_EVENT:
             update.callback_query.edit_message_text('Введи токен мероприятия или нажмите кнопку \'Отмена\'',
                                                     reply_markup=buttons.get_cancel_button())
             update.callback_query.answer()
             return _EVENT_TOKEN_STATE
-        elif data == constants.SELECT_EVENT:
+        elif data == menu_items.SELECT_EVENT:
             user_id = update.effective_user.id
             events = self._splitwise.get_user_events(user_id)
             update.callback_query.edit_message_text('Выбери мероприятие')
@@ -187,7 +187,7 @@ class CreateEventConversation:
         update: Update,
         _: CallbackContext,
     ):
-        if update.callback_query.data == constants.CANCEL:
+        if update.callback_query.data == menu_items.CANCEL:
             update.callback_query.answer('Создание мероприятия отменено')
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
@@ -250,7 +250,7 @@ class JoinEventConversation:
         update: Update,
         _: CallbackContext,
     ):
-        if update.callback_query.data == constants.CANCEL:
+        if update.callback_query.data == menu_items.CANCEL:
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
             return _END
@@ -288,7 +288,7 @@ class SelectEventConversation:
             self,
             update: Update,
             context: CallbackContext,):
-        if update.callback_query.data == constants.CANCEL:
+        if update.callback_query.data == menu_items.CANCEL:
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
             update.callback_query.answer()
@@ -333,7 +333,7 @@ class ActionProcessHandlers:
         context: CallbackContext,
     ) -> NoReturn:
         data = update.callback_query.data
-        if data == constants.SHOW_DEBTS:
+        if data == menu_items.SHOW_DEBTS:
             token = context.user_data[_CURRENT_EVENT_TOKEN]
             user_id = update.effective_user.id
             lenders_info, debtors_info = self._splitwise.get_final_transactions(token)
@@ -346,7 +346,7 @@ class ActionProcessHandlers:
             update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
             update.callback_query.answer()
             return _END
-        elif data == constants.ADD_EXPENSE:
+        elif data == menu_items.ADD_EXPENSE:
             event_token = context.user_data[_CURRENT_EVENT_TOKEN]
             user_id = update.effective_user.id
             try:
@@ -361,7 +361,7 @@ class ActionProcessHandlers:
             context.user_data[_EXPENSE] = expense
             update.callback_query.edit_message_text('Введи название траты.')
             return _EXPENSE_NAME
-        elif data == constants.CANCEL:
+        elif data == menu_items.CANCEL:
             del context.user_data[_CURRENT_EVENT_TOKEN]
             update.callback_query.edit_message_text('Меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_menu_keyboard())
@@ -473,7 +473,7 @@ class AddExpenseHandlers:
         update: Update,
         context: CallbackContext
     ):
-        if update.callback_query.data == constants.CANCEL:
+        if update.callback_query.data == menu_items.CANCEL:
             del context.user_data[_EXPENSE]
             del context.user_data[_DEBT]  # TODO: check if no debts exist, might be KeyError
             del context.user_data[_CURRENT_EVENT_TOKEN]
