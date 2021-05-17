@@ -28,7 +28,7 @@ def get_event_buttons(events: List[Event]) -> InlineKeyboardMarkup:
 
 
 def get_cancel_button() -> InlineKeyboardMarkup:
-    keyboard = [[InlineKeyboardButton('Назад', callback_data='cancel')]]
+    keyboard = [[InlineKeyboardButton('Назад', callback_data=menu_items.CANCEL)]]
     return InlineKeyboardMarkup(keyboard)
 
 
