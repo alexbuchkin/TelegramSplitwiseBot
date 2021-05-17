@@ -260,9 +260,9 @@ class JoinEventConversation:
             return None
 
     def fallbacks_handler(
-            self,
-            update: Update,
-            _: CallbackContext,
+        self,
+        update: Update,
+        _: CallbackContext,
     ):
         update.effective_chat.send_message('Давай токен говори')
         return None
