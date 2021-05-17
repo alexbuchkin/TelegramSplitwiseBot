@@ -47,8 +47,8 @@ def get_empty_keyboard() -> InlineKeyboardMarkup:
 
 def get_event_commands_keyboard() -> InlineKeyboardMarkup:
     add_expense = InlineKeyboardButton('Добавить трату', callback_data=menu_items.ADD_EXPENSE)
-    sho_debts = InlineKeyboardButton('Показать мои долги', callback_data=menu_items.SHOW_DEBTS)
+    show_debts = InlineKeyboardButton('Показать мои долги', callback_data=menu_items.SHOW_DEBTS)
     cancel = InlineKeyboardButton('Назад', callback_data=menu_items.CANCEL)
 
-    keyboard = InlineKeyboardMarkup([[add_expense], [sho_debts], [cancel]])
+    keyboard = InlineKeyboardMarkup([[add_expense], [show_debts], [cancel]])
     return keyboard
