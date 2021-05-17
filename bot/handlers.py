@@ -195,7 +195,6 @@ class CreateEventConversation:
             return ConversationHandler.END
         else:
             update.callback_query.answer('Не на ту кнопку жмешь')
-            return None
 
     def fallbacks_handler(
         self,
@@ -203,7 +202,6 @@ class CreateEventConversation:
         _: CallbackContext,
     ):
         update.effective_chat.send_message('Мимо кассы. Нужно имя.')
-        return None
 
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
@@ -257,7 +255,6 @@ class JoinEventConversation:
             return ConversationHandler.END
         else:
             update.callback_query.answer('Не на ту кнопку жмешь',)
-            return None
 
     def fallbacks_handler(
         self,
@@ -265,7 +262,6 @@ class JoinEventConversation:
         _: CallbackContext,
     ):
         update.effective_chat.send_message('Давай токен говори')
-        return None
 
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
@@ -308,7 +304,6 @@ class SelectEventConversation:
         _: CallbackContext,
     ):
         update.effective_chat.send_message('Что-то пошло не так. Попробуй еще раз')
-        return None
 
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
@@ -412,7 +407,6 @@ class ActionProcessHandlers:
         _: CallbackContext,
     ):
         update.effective_chat.send_message('Что-то пошло не так. Попробуй еще раз раз')
-        return None
 
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
@@ -436,6 +430,14 @@ class AddExpenseHandlers:
     def __init__(self,):
         self._splitwise = SplitwiseApp()
 
+    @staticmethod
+    def _get_sum_or_none(text) -> Optional[int]:
+        try:
+            sum_ = int(text)
+        except ValueError:
+            return None
+        return sum_ if sum_ > 0 else None
+
     def expense_name(
         self,
         update: Update,
@@ -452,11 +454,10 @@ class AddExpenseHandlers:
         context: CallbackContext,
     ) -> Optional[States]:
         # let's use integer division and forget about cents for some time
-        expense_sum = update.effective_message.text
-        try:
-            expense_sum = int(expense_sum)
-        except ValueError:
+        expense_sum = self._get_sum_or_none(update.effective_message.text)
+        if not expense_sum:
             update.effective_chat.send_message('Потраченная сумма вводится в формате: 123(целое число). '
+                                               'Потраченная сумма должна быть больше нуля. '
                                                'Попробуй еще раз')
             return None
 
@@ -497,11 +498,10 @@ class AddExpenseHandlers:
         update: Update,
         context: CallbackContext,
     ) -> NoReturn:
-        debt_sum = update.effective_message.text
-        try:
-            debt_sum = int(debt_sum)
-        except ValueError:
+        debt_sum = self._get_sum_or_none(update.effective_message.text)
+        if not debt_sum:
             update.effective_chat.send_message('Долг вводится в формате: 123(целое число). '
+                                               'Долг должен быть положительным. '
                                                'Попробуй еще раз')
             return None
 
@@ -515,14 +515,12 @@ class AddExpenseHandlers:
                                            reply_markup=buttons.get_user_buttons(users))
         return States.DEBTOR_NAME
 
-
     def fallbacks_button_handler(
         self,
         update: Update,
         _: CallbackContext,
     ):
         update.effective_chat.send_message('Хватит жмакать на кнопки')
-        return None
 
     def fallbacks_handler(
         self,
@@ -530,7 +528,6 @@ class AddExpenseHandlers:
         _: CallbackContext,
     ):
         update.effective_chat.send_message('Что-то пошло не так. Попробуй еще раз раз раз')
-        return None
 
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
