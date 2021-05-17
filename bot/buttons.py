@@ -41,7 +41,7 @@ def get_menu_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
-def get_empty_keyboard():
+def get_empty_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([])
 
 
