@@ -7,7 +7,7 @@ from telegram.ext import (
     Updater,
 )
 
-import handlers
+from bot import handlers
 from app.splitwise import SplitwiseApp
 
 
