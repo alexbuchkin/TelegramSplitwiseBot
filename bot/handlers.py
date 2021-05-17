@@ -143,7 +143,7 @@ class MenuButtonsConversationHandler:
         update: Update,
         _: CallbackContext,
     ):
-        update.effective_chat.send_message("Ошибка, но мы не знаем что произошло")
+        update.effective_chat.send_message('Ошибка, но мы не знаем что произошло')
 
     def get_conversation_handler(self,) -> ConversationHandler:
         conv_handler = ConversationHandler(
