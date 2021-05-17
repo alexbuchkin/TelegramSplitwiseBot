@@ -51,11 +51,10 @@ class BeginningHandlers:
         if self._splitwise.user_exists(id_):
             name = self._splitwise.get_user_info(id_).name
             update.effective_chat.send_message(f'Привет, {name}! Ты уже был(а) здесь!')
-            update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
         else:
             self._splitwise.add_new_user(User(id_, name))
             update.effective_chat.send_message(f'Привет, {name}! Ты здесь впервые!')
-            update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
+        update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
 
     def users_of_event_handler(
         self,
