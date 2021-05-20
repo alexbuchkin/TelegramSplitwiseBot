@@ -1,5 +1,5 @@
 from app.splitwise import SplitwiseApp
-from database.types import User
+from database.model_types import User
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import NoReturn, List, Dict, Tuple
 
 from database.connector import Connector
-from database.types import (
+from database.model_types import (
     User,
     Event,
     Expense,

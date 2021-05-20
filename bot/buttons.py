@@ -6,7 +6,7 @@ from telegram import (
 )
 
 from bot import menu_items
-from database.types import User, Event
+from database.model_types import User, Event
 
 
 def get_user_buttons(users: List[User]) -> InlineKeyboardMarkup:
