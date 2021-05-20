@@ -70,7 +70,7 @@ class BeginningHandlers:
         update: Update,
         _: CallbackContext,
     ):
-        update.effective_chat.send_message('Введи команду или выберете пункт меню:')
+        update.effective_chat.send_message('Введи команду или выберите пункт меню:')
         update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
 
     def get_menu(
@@ -264,7 +264,7 @@ class SelectEventConversation:
         event_token = update.callback_query.data
         context.user_data[States.CURRENT_EVENT_TOKEN] = event_token
         event = self._splitwise.get_event_info(event_token)
-        update.callback_query.edit_message_text(f'{event.name}\nВведите команду или выберете пункт меню:')
+        update.callback_query.edit_message_text(f'{event.name}\nВведите команду или Выберите пункт меню:')
         update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_event_commands_keyboard())
         update.callback_query.answer()
         return States.EVENT_ACTIONS
@@ -308,13 +308,13 @@ class ActionProcessHandlers:
             lenders_info, debtors_info = self._splitwise.get_final_transactions(event_token)
             if user_id in debtors_info:
                 update.callback_query.edit_message_text('Вы должны: \n' + str(debtors_info[user_id]) +
-                                                        f'\n\n {event.name}\nВыберете пункт меню:')
+                                                        f'\n\n {event.name}\nВыберите пункт меню:')
             elif user_id in lenders_info:
                 update.callback_query.edit_message_text('Вам должны: \n' + str(lenders_info[user_id]) +
-                                                        f'\n\n {event.name}\nВыберете пункт меню:')
+                                                        f'\n\n {event.name}\nВыберите пункт меню:')
             else:
                 update.callback_query.edit_message_text('Вы никому не должны и вам никто не должен!!!' +
-                                                        f'\n\n {event.name}\nВыберете пункт меню:')
+                                                        f'\n\n {event.name}\nВыберите пункт меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_event_commands_keyboard())
             update.callback_query.answer()
             return States.EVENT_ACTIONS
@@ -356,7 +356,7 @@ class ActionProcessHandlers:
             fallbacks=[MessageHandler(Filters.all, self.fallbacks_handler)],
             map_to_parent={
                 ConversationHandler.END: ConversationHandler.END,
-                States.EVENT_ACTIONS: States.EVENT_ACTIONS
+                States.EVENT_ACTIONS: States.EVENT_ACTIONS,
             }
 
         )
@@ -383,7 +383,7 @@ class AddExpenseHandlers:
     ) -> States:
         expense_name = update.effective_message.text
         context.user_data[States.EXPENSE].name = expense_name
-        update.effective_chat.send_message('Введи потраченную сумму или нажмите кнопку \'Отмена\'.',
+        update.effective_chat.send_message('Введи потраченную сумму или нажми кнопку \'Отмена\'.',
                                            reply_markup=buttons.get_cancel_button())
         return States.EXPENSE_SUM
 
@@ -460,7 +460,7 @@ class AddExpenseHandlers:
             context.user_data.pop(States.DEBT, None)
             event_token = context.user_data[States.CURRENT_EVENT_TOKEN]
             event = self._splitwise.get_event_info(event_token)
-            update.callback_query.edit_message_text(f'\n\n {event.name}\nВыберете пункт меню:')
+            update.callback_query.edit_message_text(f'\n\n {event.name}\nВыберите пункт меню:')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_event_commands_keyboard())
             update.callback_query.answer('Закончили')
             return States.EVENT_ACTIONS
@@ -495,7 +495,7 @@ class AddExpenseHandlers:
                        MessageHandler(Filters.all, self.fallbacks_handler)],
             map_to_parent={
                 ConversationHandler.END: ConversationHandler.END,
-                States.EVENT_ACTIONS: States.EVENT_ACTIONS
+                States.EVENT_ACTIONS: States.EVENT_ACTIONS,
             }
 
         )
