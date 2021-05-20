@@ -70,7 +70,7 @@ class BeginningHandlers:
         update: Update,
         _: CallbackContext,
     ):
-        update.effective_chat.send_message('Введи команду или выберите пункт меню:')
+        update.effective_chat.send_message('Выберите пункт меню:')
         update.effective_chat.send_message('Меню:', reply_markup=buttons.get_menu_keyboard())
 
     def get_menu(
@@ -93,12 +93,12 @@ class MenuButtonsConversationHandler:
         data = update.callback_query.data
         update.callback_query.answer()
         if data == menu_items.CREATE_EVENT:
-            update.callback_query.edit_message_text('Введи название мероприятия или нажмите кнопку \'Отмена\'')
+            update.callback_query.edit_message_text('Введи название мероприятия или нажми кнопку \'Отмена\'')
             update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_cancel_button())
             update.callback_query.answer()
             return States.EVENT_NAME_STATE
         elif data == menu_items.JOIN_EVENT:
-            update.callback_query.edit_message_text('Введи токен мероприятия или нажмите кнопку \'Отмена\'',
+            update.callback_query.edit_message_text('Введи токен мероприятия или нажми кнопку \'Отмена\'',
                                                     reply_markup=buttons.get_cancel_button())
             update.callback_query.answer()
             return States.EVENT_TOKEN_STATE
@@ -201,7 +201,7 @@ class JoinEventConversation:
             self._splitwise.get_event_info(event_token)
         except KeyError:
             update.effective_chat.send_message('Мероприятия с таким токеном не существует. '
-                                               'Введите корректный токен или нажмите кнопку \'Отмена\'',
+                                               'Введи корректный токен или нажми кнопку \'Отмена\'',
                                                reply_markup=buttons.get_cancel_button())
             return None
         if self._splitwise.user_participates_in_event(user_id, event_token):
@@ -264,7 +264,7 @@ class SelectEventConversation:
         event_token = update.callback_query.data
         context.user_data[States.CURRENT_EVENT_TOKEN] = event_token
         event = self._splitwise.get_event_info(event_token)
-        update.callback_query.edit_message_text(f'{event.name}\nВведите команду или Выберите пункт меню:')
+        update.callback_query.edit_message_text(f'{event.name}\nВыберите пункт меню:')
         update.callback_query.edit_message_reply_markup(reply_markup=buttons.get_event_commands_keyboard())
         update.callback_query.answer()
         return States.EVENT_ACTIONS
@@ -330,7 +330,7 @@ class ActionProcessHandlers:
             expense.event_token = event_token
             expense.lender_id = user_id
             context.user_data[States.EXPENSE] = expense
-            update.callback_query.edit_message_text('Введи название траты или нажмите \'Отмена\'',
+            update.callback_query.edit_message_text('Введи название траты или нажми \'Отмена\'',
                                                     reply_markup=buttons.get_cancel_button())
             return States.EXPENSE_NAME
         elif data == menu_items.CANCEL:
